@@ -13,32 +13,29 @@ export default function HomePage() {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      {/* Hero: Current Active Day */}
+      {/* Hero: Latest Post */}
       <section>
         <CurrentDay day={currentDay} />
       </section>
 
-      {/* Past Days Feed */}
+      {/* Previous Posts Feed */}
       <section>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-slate-800">
-            Previous Days
-          </h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-slate-800">Previous Posts</h2>
           <span className="text-sm text-slate-500">
-            {pastDays.length} {pastDays.length === 1 ? "entry" : "entries"}
+            {pastDays.length} {pastDays.length === 1 ? "post" : "posts"}
           </span>
         </div>
 
         {pastDays.length > 0 ? (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {pastDays.map((day, index) => (
               <DayCard key={day.slug} day={day} index={index} />
             ))}
           </div>
         ) : (
-          <div className="text-center py-12 text-slate-500">
-            <p className="text-lg mb-2">No previous entries yet</p>
-            <p className="text-sm">Complete your first day to see it here</p>
+          <div className="text-center py-8 text-slate-500">
+            <p className="text-sm">No previous posts yet</p>
           </div>
         )}
       </section>

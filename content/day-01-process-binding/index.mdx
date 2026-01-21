@@ -1,0 +1,147 @@
+---
+title: "Day 01: The Lie of the Open Firewall"
+date: "2026-01-21"
+tags: ["Networking", "Beginner", "GCP", "Linux"]
+difficulty: "Fundamental"
+status: "completed"
+description: "A step-by-step guide to building a raw Python server and understanding why '0.0.0.0' matters more than your firewall rules."
+---
+
+## 👋 The Goal
+If you are new to Cloud Security, you might think "Opening the Firewall" is all you need to do to make a server public. **You are wrong.**
+
+Today, we are going to:
+1.  Build a raw Linux server on Google Cloud.
+2.  Write a simple Python web app from scratch.
+3.  **Deliberately break it** to understand how Network Binding works.
+
+*Prerequisites: A Google Cloud Account (Free Tier is fine) and 30 minutes.*
+
+---
+
+## 🏗️ Step 1: The Infrastructure
+First, we need a computer. We will use a standard "Compute Engine" VM.
+
+1.  Go to **GCP Console** > **Compute Engine** > **VM Instances**.
+2.  Click **Create Instance**.
+    * **Name:** `manual-server-day1`
+    * **Region:** `us-central1` (or any cheap region).
+    * **Series:** `E2` -> `e2-micro` (This is usually free).
+    * **Firewall:** ⚠️ **Uncheck** "Allow HTTP" and "Allow HTTPS". (We will do this manually).
+3.  Click **Create**.
+
+---
+
+## 💻 Step 2: The Code
+Once your VM is running (Green checkmark), click the **SSH** button to open a terminal inside the machine.
+
+Check if Python is installed:
+```bash
+python3 --version
+```
+
+Now, let's create our server. We will use nano (a simple text editor).
+
+```bash
+nano server.py
+```
+
+Copy and paste this code. This script creates a tiny web server. Note the line `('0.0.0.0', 8080)`. This is critical.
+
+```python
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import socket
+
+class SimpleHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+        hostname = socket.gethostname()
+        self.wfile.write(f"<h1>Hello from {hostname}!</h1>".encode())
+
+# 0.0.0.0 means "Listen on ALL interfaces" (Public & Private)
+server_address = ('0.0.0.0', 8080)
+httpd = HTTPServer(server_address, SimpleHandler)
+print("Server running on port 8080...")
+httpd.serve_forever()
+```
+
+Save the file: Press `Ctrl+O`, `Enter`, then `Ctrl+X`.
+
+Run the server:
+
+```bash
+python3 server.py
+```
+
+---
+
+## 🚧 Step 3: The Firewall
+If you try to visit `http://<YOUR_VM_IP>:8080` right now, it will fail. Why? Because GCP's VPC Firewall blocks weird ports like 8080 by default.
+
+Let's open it.
+
+1.  Leave the SSH window open.
+2.  In a new tab, go to **VPC Network** > **Firewall**.
+3.  **Create Firewall Rule:**
+    * **Name:** `allow-8080`
+    * **Targets:** All instances in the network.
+    * **Source IP ranges:** `0.0.0.0/0` (The Internet).
+    * **TCP Ports:** `8080`.
+4.  Click **Create**.
+
+**Test it:** Refresh your browser. You should see "Hello from manual-server-day1!"
+
+---
+
+## 💥 Step 4: The "Breaker" (Do This!)
+Now, let's learn the real lesson. We are going to make the server unreachable, **without touching the firewall.**
+
+1.  Stop your server (`Ctrl+C`).
+2.  Edit the file again: `nano server.py`.
+3.  Change this specific line:
+
+```python
+# CHANGE THIS:
+server_address = ('0.0.0.0', 8080)
+
+# TO THIS:
+server_address = ('127.0.0.1', 8080)
+```
+
+4.  Save and Run it again: `python3 server.py`.
+5.  Go back to your browser and refresh.
+
+**Result:** Connection Refused (or Timed Out).
+
+---
+
+## 🕵️ Step 5: First Principles Analysis
+*"Wait, the firewall is green. The server is running. Why can't I see it?"*
+
+This is the difference between **Network Access** and **Process Binding**.
+
+* The **Firewall** allows the guest to walk to your front door (`eth0`).
+* The **Binding** determines which door the receptionist (Python) is standing at.
+
+By changing to `127.0.0.1` (Localhost), you told Python to stand in a locked internal closet. Even though the guest (your browser) got past the security guard (Firewall), there was no one at the front door (`0.0.0.0`) to greet them.
+
+### The Golden Command
+How do you debug this in real life? Run this command:
+
+```bash
+sudo ss -tulpn | grep 8080
+```
+
+* If you see `127.0.0.1:8080`: You are talking to yourself. (Private)
+* If you see `0.0.0.0:8080`: You are talking to the world. (Public)
+
+---
+
+## ✅ Checklist for Day 01
+- [ ] Created a VM.
+- [ ] Opened a custom Firewall Port.
+- [ ] Successfully connected via Public IP.
+- [ ] Broke connectivity by changing binding to Localhost.
+- [ ] Verified the issue using `ss -tulpn`.

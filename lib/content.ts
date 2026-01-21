@@ -24,11 +24,9 @@ export function getAllDays(): DayEntry[] {
             const fileContents = fs.readFileSync(mdxPath, "utf8");
             const { data, content } = matter(fileContents);
 
-            // Extract day number from folder name (e.g., "day-01-intro" -> 1)
             const dayMatch = folder.match(/day-(\d+)/);
             const dayNumber = dayMatch ? parseInt(dayMatch[1], 10) : 0;
 
-            // Calculate reading time (~200 words per minute)
             const wordCount = content.split(/\s+/).length;
             const readingTime = `${Math.max(1, Math.ceil(wordCount / 200))} min read`;
 
@@ -47,7 +45,6 @@ export function getAllDays(): DayEntry[] {
         })
         .filter((day): day is DayEntry => day !== null);
 
-    // Sort by day number descending (newest first)
     return days.sort((a, b) => b.dayNumber - a.dayNumber);
 }
 
@@ -58,11 +55,8 @@ export function getDayBySlug(slug: string): DayEntry | null {
 
 export function getCurrentDay(): DayEntry | null {
     const allDays = getAllDays();
-    // Find the first "in-progress" day, or the highest numbered day
     const inProgress = allDays.find((day) => day.status === "in-progress");
     if (inProgress) return inProgress;
-
-    // Return the highest numbered day that's not upcoming
     const active = allDays.find((day) => day.status !== "upcoming");
     return active || null;
 }
