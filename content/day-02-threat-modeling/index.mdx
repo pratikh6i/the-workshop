@@ -1,0 +1,67 @@
+---
+title: "Threat Modeling Fundamentals"
+description: "Learn to identify, categorize, and prioritize potential threats to your systems using structured methodologies."
+date: "2026-01-20"
+status: "completed"
+difficulty: "beginner"
+tags: ["threat-modeling", "STRIDE", "risk-assessment"]
+---
+
+# Threat Modeling: Think Like an Attacker
+
+Threat modeling is the practice of identifying potential security threats and vulnerabilities before they can be exploited. Today, we'll learn the **STRIDE** methodology—one of the most widely used frameworks in the industry.
+
+## What is STRIDE?
+
+STRIDE is an acronym developed by Microsoft that categorizes threats into six types:
+
+| Threat | Description | Example |
+|--------|-------------|---------|
+| **S**poofing | Pretending to be someone else | Fake login pages |
+| **T**ampering | Modifying data without authorization | SQL injection |
+| **R**epudiation | Denying an action took place | Deleting audit logs |
+| **I**nformation Disclosure | Exposing data to unauthorized users | Data breaches |
+| **D**enial of Service | Making systems unavailable | DDoS attacks |
+| **E**levation of Privilege | Gaining unauthorized access levels | Privilege escalation |
+
+## The Threat Modeling Process
+
+A typical threat modeling session follows these steps:
+
+1. **Identify Assets** - What are you protecting?
+2. **Create an Architecture Overview** - How does the system work?
+3. **Decompose the Application** - What are the entry points?
+4. **Identify Threats** - What could go wrong? (Use STRIDE)
+5. **Document and Rate** - How severe is each threat?
+6. **Mitigate** - How do we address each threat?
+
+## Practical Exercise
+
+Let's model threats for a simple web application:
+
+```plaintext
+┌──────────────┐     HTTPS      ┌──────────────┐
+│   Browser    │ ◄────────────► │  Web Server  │
+└──────────────┘                └──────────────┘
+                                       │
+                                       │ SQL
+                                       ▼
+                                ┌──────────────┐
+                                │   Database   │
+                                └──────────────┘
+```
+
+**Questions to consider:**
+- What if someone intercepts the HTTPS traffic?
+- What if the database credentials are exposed?
+- How do we prevent SQL injection?
+
+## Key Takeaways
+
+- Threat modeling should happen **early** in the development cycle
+- No system is 100% secure—prioritize based on risk
+- Use frameworks like STRIDE to ensure comprehensive coverage
+
+---
+
+**Tomorrow:** Network Basics—understanding how data flows and where vulnerabilities exist.
