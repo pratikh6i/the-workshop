@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Calendar, Clock } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 interface DayCardProps {
     day: {
@@ -19,34 +19,32 @@ interface DayCardProps {
 
 export default function DayCard({ day }: DayCardProps) {
     return (
-        <Link href={`/day/${day.slug}/`} className="card block">
-            <div className="flex items-start gap-4">
-                <div className="text-sm font-bold text-gray-400">
-                    {day.dayNumber.toString().padStart(2, '0')}
+        <Link href={`/day/${day.slug}/`} className="group block mb-12 last:mb-0">
+            <article className="border-b border-slate-100 pb-12 hover:border-slate-200 transition-colors">
+                <div className="flex items-center gap-3 text-sm text-slate-500 mb-3 font-medium">
+                    <span className="uppercase tracking-wider text-xs">Day {day.dayNumber}</span>
+                    <span>•</span>
+                    <span>{day.readingTime || "5 min read"}</span>
+                    {day.difficulty && (
+                        <>
+                            <span>•</span>
+                            <span className="capitalize text-slate-400">{day.difficulty}</span>
+                        </>
+                    )}
                 </div>
-                <div className="flex-1">
-                    <h3 className="font-semibold text-black mb-2 leading-tight">
-                        {day.title}
-                    </h3>
-                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-                        {day.description}
-                    </p>
-                    <div className="flex items-center gap-4 text-xs text-gray-500">
-                        {day.date && (
-                            <span className="flex items-center gap-1">
-                                <Calendar className="w-3 h-3" />
-                                {new Date(day.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                            </span>
-                        )}
-                        {day.readingTime && (
-                            <span className="flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                {day.readingTime}
-                            </span>
-                        )}
-                    </div>
+
+                <h3 className="text-2xl font-bold text-slate-900 mb-3 group-hover:text-slate-700 transition-colors leading-tight tracking-tight">
+                    {day.title}
+                </h3>
+
+                <p className="text-slate-600 text-lg leading-relaxed mb-4 line-clamp-2 max-w-2xl">
+                    {day.description}
+                </p>
+
+                <div className="flex items-center text-slate-900 text-sm font-semibold group-hover:translate-x-1 transition-transform inline-flex">
+                    Read Post <ArrowRight className="w-4 h-4 ml-1" />
                 </div>
-            </div>
+            </article>
         </Link>
     );
 }

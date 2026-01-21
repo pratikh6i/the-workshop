@@ -12,33 +12,21 @@ export default function HomePage() {
   );
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="animate-fade-in">
       {/* Hero: Latest Post */}
-      <section>
-        <CurrentDay day={currentDay} />
-      </section>
+      <CurrentDay day={currentDay} />
 
       {/* Previous Posts Feed */}
-      <section>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-slate-800">Previous Posts</h2>
-          <span className="text-sm text-slate-500">
-            {pastDays.length} {pastDays.length === 1 ? "post" : "posts"}
-          </span>
-        </div>
-
-        {pastDays.length > 0 ? (
-          <div className="space-y-3">
+      {pastDays.length > 0 && (
+        <section className="mt-20 pt-10 border-t border-slate-100">
+          <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-10">Previous Entries</h2>
+          <div>
             {pastDays.map((day, index) => (
               <DayCard key={day.slug} day={day} index={index} />
             ))}
           </div>
-        ) : (
-          <div className="text-center py-8 text-slate-500">
-            <p className="text-sm">No previous posts yet</p>
-          </div>
-        )}
-      </section>
+        </section>
+      )}
     </div>
   );
 }

@@ -28,9 +28,9 @@ export default async function DayPage({ params }: PageProps) {
     const { prev, next } = getAdjacentDays(slug);
 
     const difficultyColors = {
-        beginner: "tag-mint",
-        intermediate: "tag-sky",
-        advanced: "tag-coral",
+        beginner: "bg-emerald-50 text-emerald-700 border-emerald-100",
+        intermediate: "bg-sky-50 text-sky-700 border-sky-100",
+        advanced: "bg-amber-50 text-amber-700 border-amber-100",
     };
 
     const statusLabels = {
@@ -41,50 +41,57 @@ export default async function DayPage({ params }: PageProps) {
     };
 
     return (
-        <article className="animate-fade-in">
+        <article className="animate-fade-in min-h-screen pb-20">
             {/* Back Link */}
             <Link
                 href="/"
-                className="inline-flex items-center gap-2 text-slate-500 hover:text-sky-600 mb-6 text-sm btn-press"
+                className="inline-flex items-center gap-2 text-slate-500 hover:text-slate-900 mb-8 text-sm font-medium transition-colors no-underline"
             >
                 <ArrowLeft className="w-4 h-4" />
                 Back to Feed
             </Link>
 
             {/* Header */}
-            <header className="mb-6">
-                <div className="flex flex-wrap items-center gap-2 mb-3">
-                    <span className="text-sm font-medium text-sky-600">
-                        Day {day.dayNumber.toString().padStart(2, "0")}
+            <header className="mb-12">
+                <div className="flex flex-wrap items-center gap-3 mb-6">
+                    <span className="text-sm font-mono font-medium text-slate-400">
+                        DAY {day.dayNumber.toString().padStart(2, "0")}
                     </span>
-                    <span className={`tag ${difficultyColors[day.difficulty]}`}>
+                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${difficultyColors[day.difficulty] || "bg-slate-50 text-slate-600 border-slate-100"}`}>
                         {day.difficulty}
-                    </span>
-                    <span className="tag tag-slate">
-                        {statusLabels[day.status]}
                     </span>
                 </div>
 
-                <h1 className="text-2xl font-bold text-slate-900 mb-3">
+                <h1 className="text-3xl md:text-5xl font-bold text-slate-900 mb-6 tracking-tight leading-tight text-balance">
                     {day.title}
                 </h1>
 
                 {day.description && (
-                    <p className="text-slate-600 mb-4">
+                    <p className="text-xl text-slate-600 mb-8 leading-relaxed max-w-2xl text-balance">
                         {day.description}
                     </p>
                 )}
 
                 {/* Meta */}
-                <div className="flex flex-wrap items-center gap-4 text-sm text-slate-500 pb-4 border-b border-slate-200">
+                <div className="flex flex-wrap items-center gap-6 text-sm text-slate-500 py-6 border-y border-slate-100">
+                    <div className="flex items-center gap-2">
+                        <img
+                            src="https://github.com/pratikh6i.png"
+                            alt="Author"
+                            className="w-8 h-8 rounded-full border border-slate-100 bg-slate-50"
+                        />
+                        <span className="font-medium text-slate-900">Pratik Shetti</span>
+                    </div>
+                    <span className="text-slate-300">•</span>
                     <span className="flex items-center gap-1.5">
                         <Calendar className="w-4 h-4" />
                         {new Date(day.date).toLocaleDateString("en-US", {
                             year: "numeric",
-                            month: "long",
+                            month: "short",
                             day: "numeric",
                         })}
                     </span>
+                    <span className="text-slate-300">•</span>
                     {day.readingTime && (
                         <span className="flex items-center gap-1.5">
                             <Clock className="w-4 h-4" />
@@ -95,7 +102,7 @@ export default async function DayPage({ params }: PageProps) {
             </header>
 
             {/* Content */}
-            <div className="prose">
+            <div className="prose prose-slate prose-lg max-w-none">
                 {day.content && (
                     <MDXRemote
                         source={day.content}
@@ -111,11 +118,11 @@ export default async function DayPage({ params }: PageProps) {
 
             {/* Tags */}
             {day.tags && day.tags.length > 0 && (
-                <div className="mt-8 pt-4 border-t border-slate-200">
-                    <h3 className="text-sm font-medium text-slate-500 mb-2">Topics</h3>
+                <div className="mt-16 pt-8 border-t border-slate-100">
+                    <h3 className="text-sm font-semibold text-slate-900 mb-4 uppercase tracking-wider">Topics</h3>
                     <div className="flex flex-wrap gap-2">
                         {day.tags.map((tag) => (
-                            <span key={tag} className="tag tag-slate">
+                            <span key={tag} className="px-3 py-1 bg-slate-50 text-slate-600 text-sm rounded-md border border-slate-100 hover:border-slate-300 hover:bg-white transition-all cursor-default">
                                 {tag}
                             </span>
                         ))}
@@ -124,34 +131,35 @@ export default async function DayPage({ params }: PageProps) {
             )}
 
             {/* Navigation */}
-            <nav className="mt-8 pt-6 border-t border-slate-200">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {prev && (
+            <nav className="mt-16 pt-8 border-t border-slate-100">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {prev ? (
                         <Link
                             href={`/day/${prev.slug}/`}
-                            className="card group"
+                            className="group p-6 rounded-xl border border-slate-100 hover:border-slate-300 hover:bg-slate-50 transition-all"
                         >
-                            <span className="text-xs text-slate-400 flex items-center gap-1 mb-1">
-                                <ArrowLeft className="w-3 h-3" />
-                                Previous
+                            <span className="text-xs text-slate-400 flex items-center gap-1 mb-3 font-medium uppercase tracking-wider">
+                                <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />
+                                Previous Day
                             </span>
-                            <span className="font-medium text-slate-700 text-sm group-hover:text-sky-600">
-                                Day {prev.dayNumber}: {prev.title}
-                            </span>
+                            <div className="font-bold text-slate-800 text-lg group-hover:text-slate-900 leading-snug">
+                                {prev.title}
+                            </div>
                         </Link>
-                    )}
+                    ) : <div />}
+
                     {next && (
                         <Link
                             href={`/day/${next.slug}/`}
-                            className="card group md:text-right md:ml-auto"
+                            className="group p-6 rounded-xl border border-slate-100 hover:border-slate-300 hover:bg-slate-50 transition-all md:text-right"
                         >
-                            <span className="text-xs text-slate-400 flex items-center gap-1 mb-1 md:justify-end">
-                                Next
-                                <ArrowRight className="w-3 h-3" />
+                            <span className="text-xs text-slate-400 flex items-center justify-end gap-1 mb-3 font-medium uppercase tracking-wider">
+                                Next Day
+                                <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
                             </span>
-                            <span className="font-medium text-slate-700 text-sm group-hover:text-sky-600">
-                                Day {next.dayNumber}: {next.title}
-                            </span>
+                            <div className="font-bold text-slate-800 text-lg group-hover:text-slate-900 leading-snug">
+                                {next.title}
+                            </div>
                         </Link>
                     )}
                 </div>
