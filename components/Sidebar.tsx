@@ -57,7 +57,7 @@ export default function Sidebar({ days, progress }: SidebarProps) {
                                 </div>
 
                                 <div className="flex-1 min-w-0">
-                                    <p className={`text-sm font-medium truncate ${isCompleted ? "text-slate-500 line-through" : "text-slate-700 group-hover:text-slate-900"
+                                    <p className={`text-sm font-medium truncate ${isCompleted ? "text-slate-500" : "text-slate-700 group-hover:text-slate-900"
                                         }`}>
                                         {day.title}
                                     </p>

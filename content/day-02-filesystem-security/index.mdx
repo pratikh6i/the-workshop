@@ -1,0 +1,153 @@
+---
+title: "Day 02: The Data Plane Gap (IAM vs. Linux Permissions)"
+date: "2026-01-22"
+tags: ["Linux", "Storage", "Security", "ACLs", "Hardening"]
+difficulty: "Intermediate"
+status: "Complete"
+excerpt: "Cloud IAM stops intruders at the door, but Linux permissions protect the room. A tutorial on mounting disks, using ACLs, and blocking malware execution."
+---
+
+## 👋 The Goal
+We often assume that securing Google Cloud IAM (Identity Access Management) is enough. But what happens if an attacker gets inside the VM?
+
+Today, we explore the **Data Plane Gap**. We will prove that a secure Cloud configuration can still be vulnerable if the OS-level permissions are weak.
+**The Mission:**
+1.  Manually format and mount a raw disk (The Plumbing).
+2.  Use **ACLs (Access Control Lists)** to grant surgical access without using `chmod 777`.
+3.  Use **Mount Options (`noexec`)** to prevent malware from running on data disks.
+
+*Prerequisites: A GCP Project and a standard Linux VM.*
+
+---
+
+## 🏗️ Phase 1: The Plumbing (Disk Setup)
+Linux does not automatically show new disks like Windows (D: drive). We have to build the connection ourselves.
+
+**1. Create & Attach the Resource**
+* **Console:** Go to Compute Engine > Disks. Create a **10GB** disk named `vault-disk`.
+* **Attach:** Edit your VM (`manual-server-day2`) and attach this existing disk.
+
+**2. Identify the Hardware**
+SSH into your VM. We need to find the device name the Kernel assigned to our new disk.
+```bash
+lsblk
+```
+Look for a 10G device (likely `/dev/sdb`).
+
+3. Format the Disk (Clean the Slate) A raw disk is like a blank sheet of paper without lines. We must create a filesystem (ext4) to write data.
+
+```bash
+sudo mkfs.ext4 -m 0 -E lazy_itable_init=0,lazy_journal_init=0,discard /dev/sdb
+```
+
+4. Mount the Disk (The Hook) We create a folder (`/mnt/vault`) and link the physical disk to it.
+
+```bash
+sudo mkdir -p /mnt/vault
+sudo mount -o discard,defaults /dev/sdb /mnt/vault
+```
+Verify with `df -h /mnt/vault`. You should see 10GB available.
+
+---
+
+## 🎭 Phase 2: The Users (Simulation)
+We need actors to simulate an "Insider Threat" scenario.
+
+Create the Victim (Manager):
+
+```bash
+sudo adduser manager
+```
+Create the Threat (Hacker):
+
+```bash
+sudo adduser hacker
+```
+Assign Ownership: Give the vault folder to the Manager.
+
+```bash
+sudo chown manager:manager /mnt/vault
+```
+
+---
+
+## 🔐 Phase 3: The Access Control Lab
+The Challenge: We want to share a secret file with the Hacker, but strictly Read Only. We do NOT want to change the file owner, and we absolutely do NOT want to use `chmod 777` (which opens it to everyone).
+
+1. Create the Secret (As Manager)
+
+```bash
+su - manager
+echo "Top Secret Codes" > /mnt/vault/secret.txt
+chmod 600 /mnt/vault/secret.txt
+# 600 = Only I can read/write. No one else.
+```
+2. The Failure (As Hacker)
+
+```bash
+su - hacker
+cat /mnt/vault/secret.txt
+# Result: Permission Denied (Working as expected!)
+```
+3. The Fix: Access Control Lists (ACLs) Standard permissions are too blunt. We use `setfacl` to add a specific rule for one user. Switch back to Manager first.
+
+```bash
+setfacl -m u:hacker:r /mnt/vault/secret.txt
+# Translation: "Modify (m) ACL: User (u) 'hacker' gets Read (r)"
+```
+4. Verify the Fix Switch to Hacker and try again.
+
+```bash
+cat /mnt/vault/secret.txt
+# Result: SUCCESS! You can read it.
+
+echo "Malware" >> /mnt/vault/secret.txt
+# Result: Permission Denied! (You cannot write).
+```
+
+---
+
+## 🛡️ Phase 4: The Malware Defense (noexec)
+Data disks should store data, not programs. If a hacker uploads a virus to your database drive, they shouldn't be able to run it.
+
+1. The Attack (As Hacker) Create a fake virus script in the vault.
+
+```bash
+echo -e '#!/bin/bash\necho "I AM A VIRUS"' > /mnt/vault/virus.sh
+chmod +x /mnt/vault/virus.sh
+./mnt/vault/virus.sh
+```
+Result: The virus runs and prints "I AM A VIRUS". This is bad.
+
+2. The Hardening (As Root) We remount the disk with the `noexec` flag. This tells the Kernel: "Never execute binaries from this location."
+
+```bash
+# Exit to root/sudo user first
+exit 
+sudo mount -o remount,noexec /mnt/vault
+```
+3. The Verification (As Hacker) Try to run the virus again.
+
+```bash
+su - hacker
+./mnt/vault/virus.sh
+```
+Result: Permission denied.
+
+Note: Even though the file is executable (`chmod +x`), the disk itself refuses to run it.
+
+---
+
+## 🧠 Key Takeaways
+The Two Locks: Cloud IAM gets you into the VM; Linux permissions protect the files.
+
+ACLs over 777: Never open permissions to "Everyone." Use `setfacl` to grant precise access to specific users.
+
+Defense in Depth: Using mount options like `noexec` neutralizes malware drop zones before an attack can even start.
+
+## The Golden Commands
+`lsblk`: Map physical disks.
+
+`getfacl <file>`: See hidden ACL permissions.
+
+`mount -o remount,noexec`: Harden a live disk against execution.
