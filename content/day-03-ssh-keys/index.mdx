@@ -1,0 +1,137 @@
+---
+title: "Day 03: The Keymaster (SSH & Metadata)"
+date: "2026-01-23"
+tags: ["Authentication", "SSH", "Security", "GCP", "Beginner"]
+difficulty: "Fundamental"
+status: "Complete"
+excerpt: "We disable 'OS Login' to manage raw SSH keys manually. Learn how to generate keys, inject them via Metadata, and recover access if you lose them."
+---
+
+## 👋 The Goal
+Authentication is the basis of all secure communication. Usually, Google Cloud handles this for you automatically using a feature called "OS Login."
+
+Today, we are going to **turn off the autopilot**.
+
+We will:
+1.  Disable "OS Login" to force manual key management.
+2.  Generate a raw **Public/Private Key Pair** on our laptop.
+3.  Inject the Public Key into the **VM Metadata**.
+4.  **Simulate a Disaster:** Delete our Private Key and learn how to recover access without destroying the server.
+
+*Prerequisites: A generic Linux VM on GCP.*
+
+---
+
+## 🏗️ Phase 1: The Setup (Disabling Autopilot)
+We need a VM that doesn't use your Google Gmail credentials.
+
+1.  **Create VM:** Go to Compute Engine and create a VM named `keymaster-vm`.
+2.  **The Critical Step:**
+    * Expand **Advanced Options** > **Security**.
+    * Find **"Enable OS Login"**.
+    * Ensure it is **Unchecked** (or set to `False`).
+    * *Why? We want the VM to rely on raw SSH keys, not IAM roles.*
+3.  **Create** the VM.
+
+---
+
+## 🔑 Phase 2: Generating the Keys
+We need to create a unique mathematical identity. Open your **Local Terminal** (PowerShell or Terminal on Mac/Linux). Do NOT use the Google Cloud Shell for this.
+
+**1. Generate the Pair**
+Run this command to create a new key named `gcp_key`:
+```bash
+ssh-keygen -t rsa -f ~/.ssh/gcp_key -C manual-user
+```
+You will be asked for a passphrase. Press Enter twice to skip it for this lab.
+
+**2. Understand what you just made**
+
+*   **The Private Key** (`~/.ssh/gcp_key`): This is your Secret Identity. **Never share this.** It stays on your laptop.
+*   **The Public Key** (`~/.ssh/gcp_key.pub`): This is the "Lock". You can give this to anyone (or any server).
+
+**3. Copy the Lock**
+Read the public key content:
+
+```bash
+cat ~/.ssh/gcp_key.pub
+```
+Copy the entire output (starts with `ssh-rsa`... ends with `manual-user`).
+
+---
+
+## 💉 Phase 3: Metadata Injection
+Standard Linux servers require you to paste the key into a file inside the OS (`authorized_keys`). GCP is smarter. We paste it into the Console, and an agent inside the VM pulls it down.
+
+1.  Go to **GCP Console** > **VM Instances**.
+2.  Click **Edit** on `keymaster-vm`.
+3.  Scroll down to the **SSH Keys** section.
+4.  Click **Add Item** and paste your Public Key.
+5.  Ensure the username on the left reads `manual-user`.
+6.  Click **Save**.
+
+**The Test:** Connect from your laptop using the specific key file:
+
+```bash
+# Replace with your VM's External IP
+ssh -i ~/.ssh/gcp_key manual-user@<EXTERNAL_IP>
+```
+Success! You authenticated using pure math, no passwords.
+
+---
+
+## 💥 Phase 4: The Disaster (The Breaker)
+What happens if your laptop crashes or you accidentally delete the file?
+
+**1. The Accident**
+Exit the VM and delete the key from your laptop:
+
+```bash
+rm ~/.ssh/gcp_key
+```
+
+**2. The Lockout**
+Try to connect again:
+
+```bash
+ssh -i ~/.ssh/gcp_key manual-user@<EXTERNAL_IP>
+```
+**Result:** No such file or Permission denied. You are locked out.
+
+---
+
+## 🚑 Phase 5: The Rescue
+In a traditional data center, you might have to physically reboot the server into rescue mode. In GCP, the Metadata Server saves us.
+
+**The Fix:**
+
+1.  Generate a NEW key pair locally:
+
+```bash
+ssh-keygen -t rsa -f ~/.ssh/rescue_key -C manual-user
+```
+
+2.  Go back to **GCP Console** > **Edit VM** > **SSH Keys**.
+3.  Add the NEW Public Key (`rescue_key.pub`).
+4.  Save.
+
+*Why this works: A background process inside the VM (The Google Accounts Daemon) noticed the change in the Metadata, instantly updated the Linux `authorized_keys` file, and opened the door for the new key.*
+
+**Verify:**
+
+```bash
+ssh -i ~/.ssh/rescue_key manual-user@<EXTERNAL_IP>
+```
+You are back in!
+
+---
+
+## 🧠 Key Takeaways
+*   **Asymmetric Encryption:** SSH uses a Public Key (Lock) on the server and a Private Key (Key) on your laptop.
+*   **Metadata Magic:** GCP VMs talk to the Metadata Server. Changing settings in the Cloud Console can instantly change files inside the Linux OS.
+*   **Resilience:** You are rarely truly locked out of a Cloud VM as long as you have Console access.
+
+## The Golden Command
+```bash
+ssh -i <path_to_private_key> <username>@<ip_address>
+```
