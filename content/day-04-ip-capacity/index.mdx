@@ -1,0 +1,126 @@
+---
+title: "Day 04: The Rule of 4 (CIDR & Capacity)"
+date: "2026-01-24"
+tags: ["Networking", "CIDR", "GCP", "Capacity Planning"]
+difficulty: "Intermediate"
+status: "completed"
+excerpt: "Why a /29 subnet doesn't give you 8 IPs. Understanding GCP's reserved addresses and how to expand subnets without downtime."
+---
+
+## 👋 The Goal
+In traditional networking, you lose 2 IPs per subnet (Network + Broadcast). In Google Cloud, you lose **4**.
+Today, we explore **IP Exhaustion**. We will:
+1.  Create a tiny subnet (`/29`).
+2.  Fill it completely using Static IP reservations (simulating a full cluster).
+3.  Hit the "Wall" and verify which IPs Google steals.
+4.  **The Fix:** Perform a live subnet expansion from `/29` to `/28` without destroying resources.
+
+---
+
+## 📐 The Math: The "Rule of 4"
+If you create a subnet `10.0.1.0/29`, you expect 8 IPs.
+GCP gives you only **4 usable IPs**.
+
+| IP Address | Usage |
+| :--- | :--- |
+| `10.0.1.0` | **Network Address** (Unusable) |
+| `10.0.1.1` | **Default Gateway** (Google's Router) |
+| `10.0.1.2` | **Reserved by GCP** (Future/Internal use) |
+| `10.0.1.3` | **Usable** (VM 1) |
+| `10.0.1.4` | **Usable** (VM 2) |
+| `10.0.1.5` | **Usable** (VM 3) |
+| `10.0.1.6` | **Usable** (VM 4) |
+| `10.0.1.7` | **Broadcast Address** (Unusable) |
+
+*Lesson: Always size your subnets larger than you think. A `/29` is practically useless for anything except a tiny test.*
+
+---
+
+## 🏗️ Phase 1: The Trap (Simulation)
+We don't need to spend money on 5 VMs to prove this. We can use free **Internal Static IP reservations**.
+
+**1. Create the Network**
+```bash
+gcloud compute networks create day4-vpc --subnet-mode=custom
+gcloud compute networks subnets create day4-tiny-subnet \
+    --network=day4-vpc \
+    --range=10.0.1.0/29 \
+    --region=us-central1
+```
+
+**2. Fill the Tank**
+We loop through and reserve all 4 usable IPs (.3 to .6).
+
+```bash
+for i in {3..6}; do
+  gcloud compute addresses create ip-$i \
+    --region=us-central1 \
+    --subnet=day4-tiny-subnet \
+    --addresses=10.0.1.$i
+done
+```
+
+**3. Hit the Wall**
+Try to grab one more IP (e.g., .2 which is reserved, or a new one).
+
+```bash
+gcloud compute addresses create ip-fail \
+    --region=us-central1 \
+    --subnet=day4-tiny-subnet \
+    --addresses=10.0.1.2
+```
+**Result:** ERROR: IP 10.0.1.2 is reserved.
+
+You are now out of capacity. If this was a production database cluster requiring 5 nodes, you would be down.
+
+---
+
+## 🔧 Phase 2: The Fix (Live Expansion)
+Many engineers panic here and think they need to delete the subnet (and all VMs inside it) to resize it. **False.** GCP allows live expansion of the subnet mask.
+
+**1. Expand to /28**
+A `/28` gives us 16 IPs (12 usable).
+
+```bash
+gcloud compute networks subnets expand-ip-range day4-tiny-subnet \
+    --region=us-central1 \
+    --prefix-length=28
+```
+
+**2. Verify Capacity**
+Now, try to create an IP in the new space (e.g., .9).
+
+```bash
+gcloud compute addresses create ip-success \
+    --region=us-central1 \
+    --subnet=day4-tiny-subnet \
+    --addresses=10.0.1.9
+```
+**Result:** Success. Crisis averted.
+
+---
+
+## 🚀 Phase 3: Alias IPs (Bonus)
+What if you want a single VM to host multiple applications, each with its own IP? You don't need multiple Network Cards. You can use **Alias IPs**.
+
+```bash
+gcloud compute instances create alias-vm \
+    --machine-type=e2-micro \
+    --subnet=day4-tiny-subnet \
+    --network-interface=aliases=10.0.1.10 \
+    --zone=us-central1-a
+```
+This is the foundational technology behind **Google Kubernetes Engine (GKE)**. The Node gets one IP, but the Pods get Alias IPs mapped to that Node.
+
+---
+
+## 🧠 Key Takeaways
+*   **GCP Reserves 4:** Always subtract 4 from your total CIDR count.
+*   **No Shrinking:** You can expand a subnet (go from `/29` → `/28`), but you can never shrink it.
+*   **Live Changes:** Expanding a subnet is non-destructive. You don't need to restart VMs.
+
+## The Golden Command
+```bash
+# Expand a subnet without downtime
+gcloud compute networks subnets expand-ip-range [SUBNET_NAME] --prefix-length=[NEW_SIZE]
+```
