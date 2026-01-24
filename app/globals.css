@@ -94,4 +94,62 @@
   .footer-icon {
     @apply w-5 h-5;
   }
+
+  /* Gallery Styles */
+  .gallery-grid {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6;
+  }
+
+  .gallery-item {
+    @apply cursor-pointer rounded-lg overflow-hidden bg-slate-100 transition-all duration-300 hover:shadow-xl hover:scale-[1.02];
+  }
+
+  .gallery-image-wrapper {
+    @apply relative w-full aspect-square;
+  }
+
+  .gallery-image {
+    @apply object-cover transition-transform duration-300;
+  }
+
+  .gallery-item:hover .gallery-image {
+    @apply scale-105;
+  }
+
+  /* Image Modal Styles */
+  .image-modal-overlay {
+    @apply fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center;
+  }
+
+  .image-modal-close {
+    @apply absolute top-4 right-4 z-50 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors text-white;
+  }
+
+  .image-modal-nav {
+    @apply absolute z-50 p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors text-white;
+  }
+
+  .image-modal-prev {
+    @apply left-4 top-1/2 -translate-y-1/2;
+  }
+
+  .image-modal-next {
+    @apply right-4 top-1/2 -translate-y-1/2;
+  }
+
+  .image-modal-content {
+    @apply relative max-w-7xl max-h-[90vh] w-full px-4;
+  }
+
+  .image-modal-wrapper {
+    @apply relative w-full h-[80vh];
+  }
+
+  .image-modal-image {
+    @apply object-contain;
+  }
+
+  .image-modal-counter {
+    @apply text-center mt-4 text-white/80 text-sm;
+  }
 }

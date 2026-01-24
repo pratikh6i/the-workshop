@@ -14,9 +14,20 @@ export default function Header() {
 
     return (
         <header className="h-full flex items-center justify-between px-8">
-            <div>
-                <h2 className="text-sm font-medium">Security Journey</h2>
-            </div>
+            <nav className="flex items-center gap-6">
+                <a
+                    href="/the-workshop/"
+                    className="text-sm font-medium text-slate-900 hover:text-slate-600 transition-colors"
+                >
+                    Security Journey
+                </a>
+                <a
+                    href="/the-workshop/sunflower/"
+                    className="text-sm font-medium text-slate-900 hover:text-slate-600 transition-colors"
+                >
+                    Sunflower 🌻
+                </a>
+            </nav>
 
             <button
                 onClick={() => {
