@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 import CommandPalette from "@/components/CommandPalette";
 import { getAllDays, getProgress } from "@/lib/content";
 
@@ -21,6 +22,22 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "The Workshop | 90-Day Security Odyssey",
   description: "A comprehensive 90-day journey through cybersecurity, documenting daily learnings, challenges, and discoveries.",
+  authors: [{ name: "Pratik Shetti", url: "https://www.linkedin.com/in/pratikshetti/" }],
+  keywords: ["cybersecurity", "security", "cloud security", "GCP", "linux", "workshops"],
+  metadataBase: new URL("https://pratikh6i.github.io"),
+  openGraph: {
+    title: "The Workshop | 90-Day Security Odyssey",
+    description: "A comprehensive 90-day journey through cybersecurity",
+    type: "website",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+  },
 };
 
 export default function RootLayout({
@@ -66,6 +83,9 @@ export default function RootLayout({
             <div className="content-wrapper">
               {children}
             </div>
+
+            {/* Footer */}
+            <Footer />
           </div>
         </div>
 

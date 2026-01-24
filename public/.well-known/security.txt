@@ -1,0 +1,9 @@
+# Security Policy
+
+Contact: https://www.linkedin.com/in/pratikshetti/
+Expires: 2027-12-31T23:59:59.000Z
+Preferred-Languages: en
+Canonical: https://pratikh6i.github.io/the-workshop/.well-known/security.txt
+
+# Acknowledgments
+Thank you for helping keep The Workshop and its users safe!
