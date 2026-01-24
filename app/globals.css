@@ -68,7 +68,11 @@
   }
 
   .footer-content {
-    @apply max-w-3xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-sm;
+    @apply max-w-3xl mx-auto flex items-center justify-end text-sm;
+  }
+
+  .footer-right {
+    @apply flex items-center gap-2;
   }
 
   .footer-text {
