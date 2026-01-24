@@ -38,6 +38,10 @@ export const metadata: Metadata = {
     width: "device-width",
     initialScale: 1,
   },
+  icons: {
+    icon: "/the-workshop/favicon.ico",
+    apple: "/the-workshop/logo.webp",
+  },
 };
 
 export default function RootLayout({
