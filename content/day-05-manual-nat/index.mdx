@@ -1,0 +1,24 @@
+---
+title: "Day 05: The Manual NAT (Preview)"
+date: "2026-01-25"
+tags: ["Networking", "NAT", "iptables", "Deep Dive"]
+difficulty: "Expert"
+status: "in-progress"
+excerpt: "We are preparing to build a router from scratch. Understanding Masquerading, Kernel Forwarding, and Route Tables."
+---
+
+## 🚧 Status: Initializing
+Today is a preparation day. We are setting the stage for one of the most complex fundamental networking labs: **Building a Manual NAT Gateway.**
+
+## 🎯 The Upcoming Challenge
+Most cloud engineers rely on "Cloud NAT" (a managed service). But to truly understand how the internet works, we must build it ourselves using raw Linux primitives.
+
+**Tomorrow's Deep Dive will cover:**
+1.  **Packet Masquerading:** How to use `iptables` to rewrite Source IP headers so a private server can "borrow" a public identity.
+2.  **Kernel Forwarding:** Flipping the bit in `/proc/sys/net/ipv4/ip_forward` to turn a server into a router.
+3.  **The Route Table:** Manually overriding VPC logic to force traffic through our choke point.
+
+## 🔜 Coming Soon
+The full lab walkthrough, including the `iptables` breakdown and the packet flow visualization, will drop tomorrow evening.
+
+*Resting the neural net for a high-performance execution tomorrow.*
