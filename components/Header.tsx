@@ -27,12 +27,6 @@ export default function Header() {
                 >
                     Sunflower 🌻
                 </a>
-                <a
-                    href="/the-workshop/avani/"
-                    className="text-sm font-medium text-purple-600 hover:text-purple-700 transition-colors"
-                >
-                    Hi Avani 👋
-                </a>
             </nav>
 
             <button
