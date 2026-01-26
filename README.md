@@ -375,6 +375,7 @@ gcloud compute routes create route-private-to-internet \
     --next-hop-instance-zone=us-central1-a \
     --tags=no-ip \
     --priority=800
+# Note: Use the network where your VMs were created (usually 'default')
 
 # 4. Configure the Gateway VM
 gcloud compute ssh gateway-vm --zone=us-central1-a
@@ -385,13 +386,18 @@ gcloud compute ssh gateway-vm --zone=us-central1-a
 # Enable IP forwarding in kernel
 sudo sysctl -w net.ipv4.ip_forward=1
 
-# Find network interface name (usually ens4, NOT eth0)
+# Find network interface name
 ip link show
+# Look for the interface that is UP (usually #2)
 
-# Enable NAT masquerading (replace ens4 if different)
+# Enable NAT masquerading
+# For ens4 (Debian/Ubuntu on GCP):
 sudo iptables -t nat -A POSTROUTING -o ens4 -j MASQUERADE
 
-# Verify rules
+# OR for eth0 (older systems):
+sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+
+# Verify rules (packets should increment when traffic flows)
 sudo iptables -t nat -L -v
 
 # Exit gateway
@@ -421,9 +427,15 @@ If traffic doesn't flow:
 # Check interface name
 ip link show
 
-# Flush bad rules and reapply
+# Flush bad rules
 sudo iptables -t nat -F
+
+# Reapply with correct interface
+# For ens4:
 sudo iptables -t nat -A POSTROUTING -o ens4 -j MASQUERADE
+
+# OR for eth0:
+sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
 ```
 
 ### Cleanup
