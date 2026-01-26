@@ -7,17 +7,37 @@ export const metadata = {
     description: "Visual resources and diagrams from the security workshop",
 };
 
+interface ImageMetadata {
+    filename: string;
+    name: string;
+}
+
 export default function SunflowerPage() {
     // Read images from public/gallery directory
     const galleryPath = path.join(process.cwd(), "public", "gallery");
-    let images: string[] = [];
+    const metadataPath = path.join(galleryPath, "metadata.json");
+    let images: { src: string; name: string }[] = [];
 
     try {
         if (fs.existsSync(galleryPath)) {
             const files = fs.readdirSync(galleryPath);
+            let metadata: ImageMetadata[] = [];
+
+            // Load metadata if exists
+            if (fs.existsSync(metadataPath)) {
+                const metadataContent = fs.readFileSync(metadataPath, "utf-8");
+                metadata = JSON.parse(metadataContent);
+            }
+
             images = files
                 .filter((file) => /\.(jpg|jpeg|png|webp|gif)$/i.test(file))
-                .map((file) => `/the-workshop/gallery/${file}`);
+                .map((file) => {
+                    const meta = metadata.find((m) => m.filename === file);
+                    return {
+                        src: `/the-workshop/gallery/${file}`,
+                        name: meta?.name || file,
+                    };
+                });
         }
     } catch (error) {
         console.error("Error reading gallery directory:", error);

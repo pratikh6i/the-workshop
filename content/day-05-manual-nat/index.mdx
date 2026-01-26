@@ -1,124 +1,143 @@
 ---
-title: "Day 05: The Manual NAT (Building a Router)"
+title: "Day 05: Building a Manual NAT Gateway (No 'Cloud NAT' Allowed)"
 date: "2026-01-25"
-tags: ["Networking", "NAT", "iptables", "GCP", "Linux", "Troubleshooting"]
+tags: ["Networking", "NAT", "iptables", "GCP", "Linux", "Deep Dive"]
 difficulty: "Advanced"
 status: "Complete"
-excerpt: "We build a router from scratch using Linux primitives. Learn how to configure IP Forwarding, Cloud Routes, and why 'eth0' is often the wrong answer."
+stars: 1
+excerpt: "We build a router from scratch using Linux primitives. A step-by-step guide to forwarding, masking, and routing traffic manually."
 ---
 
-## 👋 The Goal
-Most cloud engineers rely on "Cloud NAT" managed services. But to truly understand how the internet works, you must build one yourself using raw Linux primitives.
+## 🎯 The Objective
+In the cloud, we usually click a button to enable "Cloud NAT" so our private servers can update software. Today, we reject the easy button.
 
-**The Scenario:**
-We have a **Private VM** with NO Public IP. It needs to download updates from the internet.
-**The Solution:**
-We will build a **Gateway VM** that acts as a router, accepting traffic from the Private VM and forwarding it to the internet using **Source NAT (Masquerading)**.
-
-
-
----
-
-## 🏗️ Phase 1: The Infrastructure
-We need two actors and a map.
-
-**1. The Gateway (The Messenger)**
-* Create a VM named `gateway-vm` (e2-micro).
-* **Crucial Step:** Under **Advanced Options > Networking**, turn **IP Forwarding ON**.
-    * *Why? Google's network normally drops packets if the Source IP doesn't match the VM. This flag disables that check.*
-* Add network tag: `nat-gateway`.
-
-**2. The Client (The Private VM)**
-* Create a VM named `private-vm`.
-* **External IP:** Set to **None**.
-* Add network tag: `no-ip`.
-
-**3. The Route (The Map)**
-* Go to **VPC Network > Routes**.
-* Create a route sending `0.0.0.0/0` (Internet) to the `gateway-vm`.
-* **Target Tags:** `no-ip` (So it only affects our private client).
+We are going to **manually build a Linux Router**.
+By the end of this lab, you will understand:
+1.  **Packet Routing:** How to force traffic through a specific VM.
+2.  **Kernel Forwarding:** How to unlock router capabilities in Linux.
+3.  **Masquerading (Source NAT):** How `iptables` rewrites packet headers.
 
 ---
 
-## 🛑 Phase 2: The Failure
-If you SSH into `private-vm` and run `ping 8.8.8.8`, it fails (100% packet loss).
-**Why?**
-1.  The VPC sends the packet to the Gateway.
-2.  The Gateway receives it, sees "Destination: 8.8.8.8".
-3.  The Gateway thinks: "I am not 8.8.8.8," and drops the packet.
+## 🏗️ Phase 1: The Infrastructure Setup
+We need two VMs and a custom Route.
 
-We need to teach the Gateway how to route.
+### 1. Create the Gateway VM (The Router)
+This machine will sit on the edge of the internet.
+* **Go to:** Compute Engine > Create Instance.
+* **Name:** `gateway-vm`
+* **Region:** `us-central1` (or your preferred region).
+* **Machine Type:** `e2-micro`.
+* **Networking (CRITICAL):**
+    * Expand **Advanced Options** > **Networking**.
+    * Find **Network interfaces**.
+    * **IP Forwarding:** Click **ENABLE**. *(If you miss this, Google will block your traffic).*
+    * **Network Tags:** Add `nat-gateway`.
+* **Create.**
+
+### 2. Create the Private VM (The Client)
+This machine will be trapped in a private subnet.
+* **Name:** `private-vm`.
+* **Region:** Same as Gateway.
+* **Networking:**
+    * **Network Tags:** Add `no-ip`.
+    * **External IPv4 address:** Select **NONE**. *(We want zero direct internet access).*
+* **Create.**
+
+### 3. Create the Route (The Map)
+We need to tell the VPC network to send internet traffic from the Private VM to the Gateway.
+* **Go to:** VPC Network > Routes > **Create Route**.
+* **Name:** `route-private-to-internet`.
+* **Network:** `default`.
+* **Destination IP range:** `0.0.0.0/0` (The Internet).
+* **Priority:** `800` (Lower number = Higher priority than default).
+* **Instance Tags:** `no-ip` (This route ONLY applies to our Private VM).
+* **Next Hop:** Specify an instance -> `gateway-vm`.
+* **Create.**
 
 ---
 
-## 🔧 Phase 3: The Engine (Sysctl & IPTables)
-SSH into the `gateway-vm`.
+## 🧪 Phase 2: The "Control" Test
+Let's prove the connection is broken before we fix it.
 
-**1. Enable Kernel Forwarding**
-Turn the Linux server into a Router by enabling the forwarding flag.
+1.  **SSH into `private-vm`**.
+    * *Since it has no public IP, you must use the IAP Tunnel.*
+    * Command: `gcloud compute ssh private-vm --tunnel-through-iap`
+2.  **Try to ping Google:**
+    ```bash
+    ping -c 2 8.8.8.8
+    ```
+3.  **Result:** **100% Packet Loss.** The traffic hits the Gateway, but the Gateway drops it.
+
+---
+
+## 🔧 Phase 3: Configuring the Router
+Open a **New Terminal** window and SSH into `gateway-vm`.
+
+### Step 1: Enable Kernel Forwarding
+By default, Linux is paranoid. It drops packets not destined for itself. We must flip a switch to enable "Router Mode."
+
 ```bash
-# Check current state (0 = Disabled)
+# Check status (0 = Disabled, 1 = Enabled)
 sysctl net.ipv4.ip_forward
 
-# Enable it
+# Enable it instantly
 sudo sysctl -w net.ipv4.ip_forward=1
 ```
 
-**2. Identify the Interface (CRITICAL STEP)**
-Do not blindy copy eth0 from old tutorials. Modern Linux (Debian/Ubuntu) often names interfaces ens4. Check your specific interface:
+### Step 2: The "Interface Name" Trap (READ THIS)
+Most tutorials tell you to use eth0. They are wrong. Modern Linux (Debian/Ubuntu) often uses "Predictable Network Interface Names" like ens4.
+
+Find your interface name:
 
 ```bash
 ip link show
 ```
-Look for the interface that is UP. In GCP, this is usually ens4.
+Look for the interface that is UP (usually #2). It is likely ens4.
 
-**3. The Masquerade (NAT)**
-We tell iptables: "When a packet leaves this interface going to the internet, replace the Source IP with MY Public IP."
+### Step 3: Enable Masquerading (NAT)
+We need to tell iptables to take packets coming from the private VM and "sign" them with the Gateway's Public IP.
+
+Run this command (replace ens4 if your interface name is different):
 
 ```bash
-# Replace 'ens4' with your actual interface name found above
 sudo iptables -t nat -A POSTROUTING -o ens4 -j MASQUERADE
 ```
+- `-t nat`: Edit the NAT table.
+- `-A POSTROUTING`: Append to the "Post Routing" chain.
+- `-o ens4`: Output interface (Exit door).
+- `-j MASQUERADE`: Rewrite the source IP.
 
 ---
 
-## 🔍 Troubleshooting (The 'eth0' Trap)
-I initially failed to get this working because I used eth0 in my iptables command. The command ran without error, but traffic didn't flow.
+## ✅ Phase 4: Verification
+Go back to your `private-vm` terminal.
 
-The Fix: I flushed the bad rules and applied the rule to the correct ens4 interface.
+Ping Google:
 
 ```bash
-# View active rules (to see if packets are incrementing)
-sudo iptables -t nat -L -v
-
-# Flush bad rules
-sudo iptables -t nat -F
+ping -c 2 8.8.8.8
 ```
-
----
-
-## ✅ Phase 4: Success
-Go back to private-vm and ping 8.8.8.8. Result:
+Result:
 
 ```
 64 bytes from 8.8.8.8: icmp_seq=1 ttl=113 time=12.4 ms
 ```
-It works! The Private VM is surfing the web through the Gateway.
+**SUCCESS!** The Private VM is now surfing the web via the Gateway.
 
 ---
 
-## 🧠 Key Takeaways
-**Masquerading:** Private IPs cannot talk to the internet directly. They need a Gateway to "mask" their traffic.
+## 🧠 Key Takeaways & Troubleshooting
+**The "eth0" Trap:** If traffic doesn't flow, you likely applied the iptables rule to the wrong interface. Flush rules with `sudo iptables -t nat -F` and try again with the correct name from `ip link show`.
 
-**Predictable Interface Names:** Always run `ip link show`. Never assume eth0.
+**Cloud vs. OS:** Enabling "IP Forwarding" in the GCP Console allows the packet to reach the VM. Enabling sysctl allows the Linux Kernel to process it. You need both.
 
-**IP Forwarding:** Must be enabled at both the Cloud level (Checkbox) AND the OS level (Sysctl).
+**Persistence:** The sysctl and iptables rules we wrote are temporary. If you reboot the Gateway, they disappear (unless you save them to config files).
 
-**The Golden Commands**
+---
+
+## The Golden Command
 ```bash
-# Find real interface name
-ip link show
-
-# Enable NAT on the correct interface
-iptables -t nat -A POSTROUTING -o [INTERFACE_NAME] -j MASQUERADE
+# The command that turns a server into a router
+sudo iptables -t nat -A POSTROUTING -o [INTERFACE] -j MASQUERADE
 ```

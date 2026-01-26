@@ -5,7 +5,7 @@ import Image from "next/image";
 import ImageModal from "./ImageModal";
 
 interface ImageGalleryProps {
-    images: string[];
+    images: { src: string; name: string }[];
 }
 
 export default function ImageGallery({ images }: ImageGalleryProps) {
@@ -27,7 +27,7 @@ export default function ImageGallery({ images }: ImageGalleryProps) {
                 ? (selectedIndex + 1) % images.length
                 : (selectedIndex - 1 + images.length) % images.length;
         setSelectedIndex(newIndex);
-        setSelectedImage(images[newIndex]);
+        setSelectedImage(images[newIndex].src);
     };
 
     if (images.length === 0) {
@@ -45,19 +45,22 @@ export default function ImageGallery({ images }: ImageGalleryProps) {
             <div className="gallery-grid">
                 {images.map((image, index) => (
                     <div
-                        key={image}
+                        key={image.src}
                         className="gallery-item"
-                        onClick={() => openModal(image, index)}
+                        onClick={() => openModal(image.src, index)}
                     >
                         <div className="gallery-image-wrapper">
                             <Image
-                                src={image}
-                                alt={`Gallery image ${index + 1}`}
+                                src={image.src}
+                                alt={image.name}
                                 fill
                                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                                 className="gallery-image"
                                 unoptimized
                             />
+                        </div>
+                        <div className="mt-2 text-center text-sm text-slate-600 font-medium">
+                            {image.name}
                         </div>
                     </div>
                 ))}

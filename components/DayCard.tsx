@@ -13,6 +13,7 @@ interface DayCardProps {
         readingTime?: string;
         status: string;
         difficulty: string;
+        stars?: number;
     };
     index: number;
 }
@@ -33,8 +34,13 @@ export default function DayCard({ day }: DayCardProps) {
                     )}
                 </div>
 
-                <h3 className="text-2xl font-bold text-slate-900 mb-3 group-hover:text-slate-700 transition-colors leading-tight tracking-tight">
+                <h3 className="text-2xl font-bold text-slate-900 mb-3 group-hover:text-slate-700 transition-colors leading-tight tracking-tight flex items-center gap-2">
                     {day.title}
+                    {day.stars && day.stars > 0 && (
+                        <span className="text-purple-500" title="Special learning day">
+                            {"⭐".repeat(day.stars)}
+                        </span>
+                    )}
                 </h3>
 
                 <p className="text-slate-600 text-lg leading-relaxed mb-4 line-clamp-2 max-w-2xl">

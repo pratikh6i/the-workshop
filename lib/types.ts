@@ -9,6 +9,7 @@ export interface DayEntry {
     tags: string[];
     readingTime?: string;
     content?: string;
+    stars?: number; // 0-5, for highlighting special/learning days
 }
 
 export interface NavigationItem {

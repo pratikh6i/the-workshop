@@ -41,6 +41,7 @@ export function getAllDays(): DayEntry[] {
                 tags: data.tags || [],
                 readingTime,
                 content,
+                stars: data.stars || 0,
             } as DayEntry;
         })
         .filter((day): day is DayEntry => day !== null);
