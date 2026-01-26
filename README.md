@@ -419,7 +419,14 @@ ping -c 2 8.8.8.8
 - **Masquerading:** Rewrites source IP to gateway's public IP
 - **Interface Names:** Modern Linux uses `ens4`, not `eth0`
 - **IAP Tunnel:** Access private VMs without public IPs
-- **Golden Command:** `sudo iptables -t nat -A POSTROUTING -o <interface> -j MASQUERADE`
+
+**Understanding the iptables NAT command:**
+- **`-t nat`**: Edit the NAT (Network Address Translation) table (separate from the default filter table)
+- **`-A POSTROUTING`**: Append rule to the POSTROUTING chain (happens after routing decision, right before packet exits)
+- **`-o ens4`**: Match packets exiting through this interface (the "exit door" to the internet)
+- **`-j MASQUERADE`**: Jump to MASQUERADE target - rewrites source IP to the gateway's public IP dynamically
+
+**Golden Command:** `sudo iptables -t nat -A POSTROUTING -o <interface> -j MASQUERADE`
 
 ### Troubleshooting
 If traffic doesn't flow:
