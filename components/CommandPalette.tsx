@@ -11,6 +11,7 @@ interface SearchItem {
     dayNumber: number;
     title: string;
     description: string;
+    content?: string; // Full blog post content for searching
 }
 
 interface CommandPaletteProps {
@@ -53,6 +54,7 @@ export default function CommandPalette({ items }: CommandPaletteProps) {
         return (
             item.title.toLowerCase().includes(q) ||
             item.description.toLowerCase().includes(q) ||
+            (item.content && item.content.toLowerCase().includes(q)) ||
             `day ${item.dayNumber}`.includes(q)
         );
     });
