@@ -1,24 +1,124 @@
 ---
-title: "Day 05: The Manual NAT (Preview)"
+title: "Day 05: The Manual NAT (Building a Router)"
 date: "2026-01-25"
-tags: ["Networking", "NAT", "iptables", "Deep Dive"]
-difficulty: "Expert"
-status: "in-progress"
-excerpt: "We are preparing to build a router from scratch. Understanding Masquerading, Kernel Forwarding, and Route Tables."
+tags: ["Networking", "NAT", "iptables", "GCP", "Linux", "Troubleshooting"]
+difficulty: "Advanced"
+status: "Complete"
+excerpt: "We build a router from scratch using Linux primitives. Learn how to configure IP Forwarding, Cloud Routes, and why 'eth0' is often the wrong answer."
 ---
 
-## 🚧 Status: Initializing
-Today is a preparation day. We are setting the stage for one of the most complex fundamental networking labs: **Building a Manual NAT Gateway.**
+## 👋 The Goal
+Most cloud engineers rely on "Cloud NAT" managed services. But to truly understand how the internet works, you must build one yourself using raw Linux primitives.
 
-## 🎯 The Upcoming Challenge
-Most cloud engineers rely on "Cloud NAT" (a managed service). But to truly understand how the internet works, we must build it ourselves using raw Linux primitives.
+**The Scenario:**
+We have a **Private VM** with NO Public IP. It needs to download updates from the internet.
+**The Solution:**
+We will build a **Gateway VM** that acts as a router, accepting traffic from the Private VM and forwarding it to the internet using **Source NAT (Masquerading)**.
 
-**Tomorrow's Deep Dive will cover:**
-1.  **Packet Masquerading:** How to use `iptables` to rewrite Source IP headers so a private server can "borrow" a public identity.
-2.  **Kernel Forwarding:** Flipping the bit in `/proc/sys/net/ipv4/ip_forward` to turn a server into a router.
-3.  **The Route Table:** Manually overriding VPC logic to force traffic through our choke point.
 
-## 🔜 Coming Soon
-The full lab walkthrough, including the `iptables` breakdown and the packet flow visualization, will drop tomorrow evening.
 
-*Resting the neural net for a high-performance execution tomorrow.*
+---
+
+## 🏗️ Phase 1: The Infrastructure
+We need two actors and a map.
+
+**1. The Gateway (The Messenger)**
+* Create a VM named `gateway-vm` (e2-micro).
+* **Crucial Step:** Under **Advanced Options > Networking**, turn **IP Forwarding ON**.
+    * *Why? Google's network normally drops packets if the Source IP doesn't match the VM. This flag disables that check.*
+* Add network tag: `nat-gateway`.
+
+**2. The Client (The Private VM)**
+* Create a VM named `private-vm`.
+* **External IP:** Set to **None**.
+* Add network tag: `no-ip`.
+
+**3. The Route (The Map)**
+* Go to **VPC Network > Routes**.
+* Create a route sending `0.0.0.0/0` (Internet) to the `gateway-vm`.
+* **Target Tags:** `no-ip` (So it only affects our private client).
+
+---
+
+## 🛑 Phase 2: The Failure
+If you SSH into `private-vm` and run `ping 8.8.8.8`, it fails (100% packet loss).
+**Why?**
+1.  The VPC sends the packet to the Gateway.
+2.  The Gateway receives it, sees "Destination: 8.8.8.8".
+3.  The Gateway thinks: "I am not 8.8.8.8," and drops the packet.
+
+We need to teach the Gateway how to route.
+
+---
+
+## 🔧 Phase 3: The Engine (Sysctl & IPTables)
+SSH into the `gateway-vm`.
+
+**1. Enable Kernel Forwarding**
+Turn the Linux server into a Router by enabling the forwarding flag.
+```bash
+# Check current state (0 = Disabled)
+sysctl net.ipv4.ip_forward
+
+# Enable it
+sudo sysctl -w net.ipv4.ip_forward=1
+```
+
+**2. Identify the Interface (CRITICAL STEP)**
+Do not blindy copy eth0 from old tutorials. Modern Linux (Debian/Ubuntu) often names interfaces ens4. Check your specific interface:
+
+```bash
+ip link show
+```
+Look for the interface that is UP. In GCP, this is usually ens4.
+
+**3. The Masquerade (NAT)**
+We tell iptables: "When a packet leaves this interface going to the internet, replace the Source IP with MY Public IP."
+
+```bash
+# Replace 'ens4' with your actual interface name found above
+sudo iptables -t nat -A POSTROUTING -o ens4 -j MASQUERADE
+```
+
+---
+
+## 🔍 Troubleshooting (The 'eth0' Trap)
+I initially failed to get this working because I used eth0 in my iptables command. The command ran without error, but traffic didn't flow.
+
+The Fix: I flushed the bad rules and applied the rule to the correct ens4 interface.
+
+```bash
+# View active rules (to see if packets are incrementing)
+sudo iptables -t nat -L -v
+
+# Flush bad rules
+sudo iptables -t nat -F
+```
+
+---
+
+## ✅ Phase 4: Success
+Go back to private-vm and ping 8.8.8.8. Result:
+
+```
+64 bytes from 8.8.8.8: icmp_seq=1 ttl=113 time=12.4 ms
+```
+It works! The Private VM is surfing the web through the Gateway.
+
+---
+
+## 🧠 Key Takeaways
+**Masquerading:** Private IPs cannot talk to the internet directly. They need a Gateway to "mask" their traffic.
+
+**Predictable Interface Names:** Always run `ip link show`. Never assume eth0.
+
+**IP Forwarding:** Must be enabled at both the Cloud level (Checkbox) AND the OS level (Sysctl).
+
+**The Golden Commands**
+```bash
+# Find real interface name
+ip link show
+
+# Enable NAT on the correct interface
+iptables -t nat -A POSTROUTING -o [INTERFACE_NAME] -j MASQUERADE
+```
