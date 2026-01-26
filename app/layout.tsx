@@ -61,6 +61,7 @@ export default function RootLayout({
     dayNumber: d.dayNumber,
     title: d.title,
     description: d.description || "",
+    content: d.content || "",
   }));
 
   return (
