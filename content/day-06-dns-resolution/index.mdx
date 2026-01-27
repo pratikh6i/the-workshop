@@ -15,7 +15,7 @@ In the cloud:
 
 If you hardcode IPs in your application, you break this separation. Today, we are going to build a **Private DNS Zone**. This creates a "Split Reality" where your internal servers can find each other using friendly names that the public internet doesn't know exist.
 
-![DNS Logic Flowchart](./images/dns-flowchart.png)
+![DNS Logic Flowchart](/the-workshop/images/dns-flowchart.png)
 
 ---
 
@@ -58,7 +58,7 @@ Now we create the "Private Reality."
 * **Type:** `A`
 * **IPv4 Address:** Enter the internal IP of `db-vm` (from Phase 1).
 
-![DNS Console Configuration](./images/dns-console-config.png)
+![DNS Console Configuration](/the-workshop/images/dns-console-config.png)
 
 ---
 
@@ -80,7 +80,7 @@ curl db.internal.corp
 ```
 Output: `<h1>I am the Database</h1>`
 
-![VM Verification](./images/vm-verification.png)
+![VM Verification](/the-workshop/images/vm-verification.png)
 
 ---
 
