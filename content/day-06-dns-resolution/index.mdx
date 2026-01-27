@@ -7,6 +7,9 @@ status: "completed"
 excerpt: "Machines talk to IPs, humans talk to names. We build a Private DNS Zone to decouple Identity from Location."
 ---
 
+> [!NOTE]
+> Some diagrams and videos in this post are AI-generated to enhance understanding and provide visual context. While they effectively illustrate the concepts, please refer to the command-line instructions for implementation accuracy.
+
 ## 🎯 The Objective
 In the physical world, "Identity" (Who you are) and "Location" (Where you are) are different.
 In the cloud:
@@ -15,7 +18,7 @@ In the cloud:
 
 If you hardcode IPs in your application, you break this separation. Today, we are going to build a **Private DNS Zone**. This creates a "Split Reality" where your internal servers can find each other using friendly names that the public internet doesn't know exist.
 
-![DNS Logic Flowchart](/the-workshop/images/dns-flowchart.png)
+![Lab Procedure Overview](/the-workshop/images/dns-flowchart.png)
 
 ---
 
