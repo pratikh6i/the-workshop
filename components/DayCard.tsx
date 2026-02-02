@@ -24,7 +24,7 @@ export default function DayCard({ day }: DayCardProps) {
             <article className="border-b border-slate-100 pb-12 hover:border-slate-200 transition-colors">
                 <div className="flex items-center gap-3 text-sm text-slate-500 mb-3 font-medium">
                     <span className="uppercase tracking-wider text-xs">
-                        {day.dayNumber > 0 ? `Day ${day.dayNumber}` : "Special Ops"}
+                        {day.dayNumber > 0 ? `Day ${day.dayNumber}` : `SO ${Math.abs(day.dayNumber)}`}
                     </span>
                     <span>•</span>
                     <span>{day.readingTime || "5 min read"}</span>

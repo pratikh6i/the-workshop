@@ -28,9 +28,10 @@ export function getAllDays(): DayEntry[] {
             if (folder.startsWith("day-")) {
                 const dayMatch = folder.match(/day-(\d+)/);
                 dayNumber = dayMatch ? parseInt(dayMatch[1], 10) : 0;
-            } else {
-                // Special Ops don't have a day number, handle sorting or identification
-                dayNumber = -1; // Use -1 to identify special ops
+            } else if (folder.startsWith("special-ops-")) {
+                const soMatch = folder.match(/special-ops-(\d+)/);
+                // Map SO numbers to negative values for identification and sorting (SO1 -> -1)
+                dayNumber = soMatch ? -parseInt(soMatch[1], 10) : -1;
             }
 
             const wordCount = content.split(/\s+/).length;
@@ -39,7 +40,7 @@ export function getAllDays(): DayEntry[] {
             return {
                 slug: folder,
                 dayNumber,
-                title: data.title || (dayNumber > 0 ? `Day ${dayNumber}` : "Special Ops"),
+                title: data.title || (dayNumber > 0 ? `Day ${dayNumber}` : `Special Ops ${Math.abs(dayNumber)}`),
                 date: data.date || new Date().toISOString(),
                 status: data.status || "draft",
                 difficulty: data.difficulty || "beginner",

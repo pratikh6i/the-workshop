@@ -53,7 +53,7 @@ export default function Sidebar({ days, progress }: SidebarProps) {
                                         <div className="w-4 h-4 rounded-full border-2 border-sky-500 animate-pulse" />
                                     ) : (
                                         <span className="text-slate-300 text-xs font-mono w-4 inline-block text-center">
-                                            {day.dayNumber > 0 ? day.dayNumber : "SO"}
+                                            {day.dayNumber > 0 ? day.dayNumber : `S${Math.abs(day.dayNumber)}`}
                                         </span>
                                     )}
                                 </div>

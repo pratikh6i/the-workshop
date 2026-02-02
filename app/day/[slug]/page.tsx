@@ -55,7 +55,7 @@ export default async function DayPage({ params }: PageProps) {
             <header className="mb-12">
                 <div className="flex flex-wrap items-center gap-3 mb-6">
                     <span className="text-sm font-mono font-medium text-slate-400 uppercase">
-                        {day.dayNumber > 0 ? `Day ${day.dayNumber.toString().padStart(2, "0")}` : "Special Ops"}
+                        {day.dayNumber > 0 ? `Day ${day.dayNumber.toString().padStart(2, "0")}` : `Special Ops ${Math.abs(day.dayNumber)}`}
                     </span>
                     <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${difficultyColors[day.difficulty] || "bg-slate-50 text-slate-600 border-slate-100"}`}>
                         {day.difficulty}
