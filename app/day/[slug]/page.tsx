@@ -54,8 +54,8 @@ export default async function DayPage({ params }: PageProps) {
             {/* Header */}
             <header className="mb-12">
                 <div className="flex flex-wrap items-center gap-3 mb-6">
-                    <span className="text-sm font-mono font-medium text-slate-400">
-                        DAY {day.dayNumber.toString().padStart(2, "0")}
+                    <span className="text-sm font-mono font-medium text-slate-400 uppercase">
+                        {day.dayNumber > 0 ? `Day ${day.dayNumber.toString().padStart(2, "0")}` : "Special Ops"}
                     </span>
                     <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${difficultyColors[day.difficulty] || "bg-slate-50 text-slate-600 border-slate-100"}`}>
                         {day.difficulty}
@@ -140,7 +140,7 @@ export default async function DayPage({ params }: PageProps) {
                         >
                             <span className="text-xs text-slate-400 flex items-center gap-1 mb-3 font-medium uppercase tracking-wider">
                                 <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />
-                                Previous Day
+                                {prev.dayNumber > 0 ? "Previous Day" : "Previous Lab"}
                             </span>
                             <div className="font-bold text-slate-800 text-lg group-hover:text-slate-900 leading-snug">
                                 {prev.title}
@@ -154,7 +154,7 @@ export default async function DayPage({ params }: PageProps) {
                             className="group p-6 rounded-xl border border-slate-100 hover:border-slate-300 hover:bg-slate-50 transition-all md:text-right"
                         >
                             <span className="text-xs text-slate-400 flex items-center justify-end gap-1 mb-3 font-medium uppercase tracking-wider">
-                                Next Day
+                                {next.dayNumber > 0 ? "Next Day" : "Next Lab"}
                                 <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
                             </span>
                             <div className="font-bold text-slate-800 text-lg group-hover:text-slate-900 leading-snug">

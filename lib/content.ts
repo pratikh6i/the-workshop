@@ -13,7 +13,7 @@ export function getAllDays(): DayEntry[] {
     const folders = fs.readdirSync(contentDirectory);
 
     const days: DayEntry[] = folders
-        .filter((folder) => folder.startsWith("day-"))
+        .filter((folder) => folder.startsWith("day-") || folder.startsWith("special-ops-"))
         .map((folder) => {
             const mdxPath = path.join(contentDirectory, folder, "index.mdx");
 
@@ -24,8 +24,14 @@ export function getAllDays(): DayEntry[] {
             const fileContents = fs.readFileSync(mdxPath, "utf8");
             const { data, content } = matter(fileContents);
 
-            const dayMatch = folder.match(/day-(\d+)/);
-            const dayNumber = dayMatch ? parseInt(dayMatch[1], 10) : 0;
+            let dayNumber = 0;
+            if (folder.startsWith("day-")) {
+                const dayMatch = folder.match(/day-(\d+)/);
+                dayNumber = dayMatch ? parseInt(dayMatch[1], 10) : 0;
+            } else {
+                // Special Ops don't have a day number, handle sorting or identification
+                dayNumber = -1; // Use -1 to identify special ops
+            }
 
             const wordCount = content.split(/\s+/).length;
             const readingTime = `${Math.max(1, Math.ceil(wordCount / 200))} min read`;
@@ -33,11 +39,11 @@ export function getAllDays(): DayEntry[] {
             return {
                 slug: folder,
                 dayNumber,
-                title: data.title || `Day ${dayNumber}`,
+                title: data.title || (dayNumber > 0 ? `Day ${dayNumber}` : "Special Ops"),
                 date: data.date || new Date().toISOString(),
                 status: data.status || "draft",
                 difficulty: data.difficulty || "beginner",
-                description: data.description || "",
+                description: data.description || data.excerpt || "",
                 tags: data.tags || [],
                 readingTime,
                 content,

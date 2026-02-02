@@ -23,7 +23,9 @@ export default function DayCard({ day }: DayCardProps) {
         <Link href={`/day/${day.slug}/`} className="group block mb-12 last:mb-0">
             <article className="border-b border-slate-100 pb-12 hover:border-slate-200 transition-colors">
                 <div className="flex items-center gap-3 text-sm text-slate-500 mb-3 font-medium">
-                    <span className="uppercase tracking-wider text-xs">Day {day.dayNumber}</span>
+                    <span className="uppercase tracking-wider text-xs">
+                        {day.dayNumber > 0 ? `Day ${day.dayNumber}` : "Special Ops"}
+                    </span>
                     <span>•</span>
                     <span>{day.readingTime || "5 min read"}</span>
                     {day.difficulty && (
