@@ -4,7 +4,7 @@ date: "2026-02-03"
 tags: ["Networking", "Nginx", "Load Balancing", "High Availability", "Architecture"]
 difficulty: "Intermediate"
 status: "Complete"
-excerpt: "We peel back the abstraction of Cloud Load Balancers by building one manually using Nginx. We cover Round Robin, Failover, Sticky Sessions, and the complete Life of a Packet."
+excerpt: "We peel back the abstraction of Cloud Load Balancers by building one manually using Nginx. We cover Round Robin, Failover, Sticky Sessions, and the architectural journey of a packet."
 ---
 
 ## 🎯 The Objective
@@ -86,27 +86,35 @@ We assigned `weight=3` to Backend A and `weight=1` to Backend B.
 
 ---
 
-## 🔬 Deep Dive: The Life of a Packet
-It is not enough to just know which buttons to click. To be a Security Architect, you must understand the journey of a single packet through the Google SDN.
+## 🔬 Deep Dive: The Logic of a Packet
+To be a Security Architect, you must understand both the Network Layers (Encryption/Termination) and the Cloud Components (Routing/Decision Making).
 
 ![Life of a Packet in Google Cloud Load Balancing](./images/packet-flow.png)
 
-**The Flow:**
+**The Balanced Flow:**
 
-1. **Resolution:** User queries DNS -> Resolves to the Anycast VIP (Public IP).
-2. **Ingress:** The request reaches the nearest Google Edge Point of Presence (PoP).
-3. **L4 Termination:** Google terminates the user's TCP connection at the Edge.
-4. **Identity (SNI):** The Edge checks the Server Name Indication to select the correct SSL Certificate and decrypts the traffic (TLS Termination).
-5. **Security (WAF):** Cloud Armor scans the decrypted payload for malicious patterns (SQLi, XSS). If bad, it blocks (403).
-6. **Routing (UrlMap):** The Proxy inspects the path (`/app` vs `/images`) to decide which Backend Service to use.
-7. **Selection:** The Backend Service checks the Health Status of the Instance Group. It filters out dead VMs.
-8. **Distribution:** It applies the algorithm (Round Robin/Sticky) to pick one healthy VM (e.g., `10.128.0.5`).
-9. **Forwarding:** The Proxy initiates a NEW TCP connection to the VM's Internal IP.
-10. **Processing:** The VM processes the request and sends the response back to the Proxy, which encrypts it and sends it to the user.
+1. **The Entry (Anycast):** The user sends an HTTPS request. It lands at the nearest Google Edge location (not necessarily where your servers are).
+
+2. **Termination (The Handshake):** The Target Proxy accepts the connection.
+   * *Layer Detail:* It performs the TLS Handshake here, decrypting the traffic so it can inspect the Layer 7 data.
+
+3. **Security (The Gatekeeper):** Cloud Armor inspects the now-decrypted request.
+   * *Decision:* Is this SQL Injection? Is the IP banned? -> Block or Allow.
+
+4. **Routing (The Brain):** The URL Map looks at the path (e.g., `/app`).
+   * *Decision:* Does this path exist? Which "Backend Service" handles it?
+
+5. **Selection (The Manager):** The Backend Service looks at the Instance Group.
+   * *Logic:* Filter out unhealthy VMs -> Apply Round Robin -> Pick VM-A.
+
+6. **The Handoff (Internal Network):** The Proxy initiates a New TCP Connection to VM-A using its Internal IP.
+   * *Note:* The source IP is now the Proxy's IP, not the User's IP.
+
+7. **Processing:** VM-A processes the request and hands the response back to the Proxy to be re-encrypted and delivered.
 
 ---
 
 ## 📝 Key Takeaways
 * **L7 Awareness:** A Layer 7 LB doesn't just forward packets; it terminates the connection, reads the request, and makes intelligent decisions (Routing).
-* **Health Checks:** You don't need a complex monitoring tool for basic HA; the LB passively monitors response codes.
-* **State Matters:** Sticky Sessions are a quick fix for legacy apps, but "Stateless + Redis" is the architecture of champions.
+* **Passive Health Checks:** The LB actively removes failed servers from rotation without needing external monitoring tools.
+* **Stateless Architecture:** Sticky Sessions are a patch; External State (Redis) is the solution.
