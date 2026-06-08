@@ -1,5 +1,6 @@
 import type { MDXComponents as MDXComponentsType } from "mdx/types";
 import { AlertCircle, Info, Lightbulb, AlertTriangle, CheckCircle2 } from "lucide-react";
+import ConnectingTheDots, { QuestionCard } from "./ConnectingTheDots";
 
 const MDXComponents: MDXComponentsType = {
     // Headings - Medium Style
@@ -142,6 +143,8 @@ const MDXComponents: MDXComponentsType = {
             </div>
         );
     },
+    ConnectingTheDots,
+    QuestionCard,
 };
 
 export default MDXComponents;

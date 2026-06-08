@@ -37,12 +37,15 @@ export function getAllDays(): DayEntry[] {
             const wordCount = content.split(/\s+/).length;
             const readingTime = `${Math.max(1, Math.ceil(wordCount / 200))} min read`;
 
+            const rawStatus = (data.status || "draft").toLowerCase();
+            const normalizedStatus = rawStatus === "complete" ? "completed" : rawStatus;
+
             return {
                 slug: folder,
                 dayNumber,
                 title: data.title || (dayNumber > 0 ? `Day ${dayNumber}` : `Special Ops ${Math.abs(dayNumber)}`),
                 date: data.date || new Date().toISOString(),
-                status: data.status || "draft",
+                status: normalizedStatus,
                 difficulty: data.difficulty || "beginner",
                 description: data.description || data.excerpt || "",
                 tags: data.tags || [],
