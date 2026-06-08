@@ -25,6 +25,10 @@ du -sh /proc
 
 The kernel lives entirely inside a protected slice of your RAM. Because it doesn't want you messing with raw memory chips, it tricks you by formatting its live data into fake text files. When you open a file in `/proc`, the kernel instantly runs a piece of code, grabs the live stat from RAM, and streams it to your screen on the fly.
 
+<FunFact emoji="🐱" label="Linux Brain Teaser">
+  `/proc` is basically **Schrödinger's filesystem** — every file in it exists *and* doesn't exist simultaneously. The files have no size, no inode data on disk, and zero bytes of storage. They only collapse into reality the moment you `cat` them. Observing the process *creates* the data. Schrödinger would have been a great kernel developer.
+</FunFact>
+
 ---
 
 ## 2. The Two Worlds of /proc 🗺️

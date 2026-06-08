@@ -1,5 +1,5 @@
 import type { MDXComponents as MDXComponentsType } from "mdx/types";
-import { AlertCircle, Info, Lightbulb, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { AlertCircle, Info, Lightbulb, AlertTriangle, CheckCircle2, Atom } from "lucide-react";
 import ConnectingTheDots, { QuestionCard } from "./ConnectingTheDots";
 
 const MDXComponents: MDXComponentsType = {
@@ -145,6 +145,22 @@ const MDXComponents: MDXComponentsType = {
     },
     ConnectingTheDots,
     QuestionCard,
+    FunFact: ({ emoji = "🐱", label = "Fun Fact", children }: { emoji?: string; label?: string; children: React.ReactNode }) => (
+        <div className="relative my-10 rounded-2xl overflow-hidden border-2 border-amber-300/70 bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 shadow-md shadow-amber-100/50">
+            {/* Decorative corner glow */}
+            <div className="absolute -top-6 -right-6 w-24 h-24 bg-amber-300/20 rounded-full blur-2xl pointer-events-none" />
+            {/* Header stripe */}
+            <div className="flex items-center gap-2.5 px-5 py-3 bg-amber-400/20 border-b border-amber-300/50">
+                <Atom className="w-4 h-4 text-amber-600" />
+                <span className="text-xs font-bold uppercase tracking-widest text-amber-700">{label}</span>
+                <span className="ml-auto text-lg leading-none">{emoji}</span>
+            </div>
+            {/* Content */}
+            <div className="px-6 py-5 text-amber-900 text-base leading-7 font-medium italic">
+                {children}
+            </div>
+        </div>
+    ),
 };
 
 export default MDXComponents;
