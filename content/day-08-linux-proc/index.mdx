@@ -10,6 +10,12 @@ excerpt: "Today we open the hood and look at the live, beating heart of the Linu
 ## 🎯 The Objective
 If you are climbing the ladder to become a security engineer, you can’t just use Linux commands—you have to understand the operating system's DNA. Today, we are opening the hood and looking at the live, beating heart of the Linux kernel: the `/proc` directory.
 
+### 🎯 Learning Objectives
+*   **The Virtual Illusion**: We'll expose how `/proc` tricks your system by showing live RAM as fake text files.
+*   **Process Birth Charts**: We'll dissect `/proc/[PID]` to hunt for hidden commands, active network connections, and leaked API keys.
+*   **Deceptive Commands**: We'll see why tools like `ps` and `top` are just glorified text parsers.
+*   **Security & Rootkits**: We'll learn how rootkits manipulate `/proc` to make malicious processes completely invisible.
+
 ---
 
 ## 1. The Ultimate Illusion: It’s Not Real! 👻
@@ -159,3 +165,10 @@ Use the interactive revision module below to test your recall and connect the do
     3.  **File Descriptor Exploitation:** Because child processes inherit the file descriptor table of their parents upon creation, if a highly privileged root program opens a master system file but neglects to apply security flags before spawning a lower-privileged utility, that utility inherits an open index slot in `/proc/[PID]/fd/`. The attacker can leverage that inherited descriptor to bypass file permissions entirely.
   </QuestionCard>
 </ConnectingTheDots>
+
+---
+
+## 💡 Lesson Reflection
+*   **Reality Check**: `/proc` isn't a folder on your drive—it's a window directly into your kernel's thoughts.
+*   **Forensic Treasure**: The information inside `/proc` is gold for security analysts, but it's also a backdoor if misconfigured.
+*   **Question Everything**: Since commands rely on `/proc`, compromised kernels can easily lie about what is running on your machine.
