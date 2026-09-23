@@ -1,0 +1,249 @@
+---
+title: "Day 10: What Actually Happens When You Run a Container? (containerd, runc & CNI)"
+date: "2026-09-23"
+tags: ["Containers", "Kubernetes", "Linux", "containerd", "runc", "CNI", "DevOps"]
+difficulty: "intermediate"
+status: "completed"
+excerpt: "Demystifying container runtimes: How containerd, runc, CNI plugins, and the Linux kernel collaborate to create the illusion of an isolated container."
+---
+
+## 🎯 The Objective
+If you have worked with containers before, you have probably run commands like `docker run` or `kubectl apply`. They feel like pure magic: you type a single command, and seconds later, an isolated app is running with its own private filesystem, memory limits, and IP address.
+
+When you start digging under the hood—especially when building Kubernetes clusters or debugging container nodes manually—you quickly realize that a **"container" is not a physical object or a standalone Linux binary**. It is an elegant illusion created by a crew of small, specialized tools orchestrating native Linux kernel features.
+
+Today, we pop the hood to understand the exact division of labor between `containerd`, `runc`, CNI, and the Linux kernel!
+
+### 🎯 Learning Objectives
+* **Process vs. Service**: Master the foundational distinction between ephemeral programs and background `systemd` daemons.
+* **The High-Level Manager (`containerd`)**: Understand image pull pipelines, snapshot management, and CRI integration with Kubernetes.
+* **The Low-Level Runtime (`runc`)**: See how namespaces and cgroups carve out isolated execution bubbles.
+* **The Networking Engine (CNI)**: Trace how virtual Ethernet (`veth`) pairs and bridge plugins assign container IP addresses.
+* **CLI Tooling (`ctr` vs `nerdctl`)**: Learn when to use raw debugging interfaces versus developer-friendly CLIs.
+
+---
+
+## 1. The Core Difference: Process vs. Service ⚙️
+
+Before diving into container runtimes, we need to clarify two basic Linux fundamentals:
+
+* **A Process:** Any executable program loaded into memory with a unique Process ID (PID). For example, running `curl https://google.com` spawns a process that performs work and terminates immediately once finished.
+* **A Service (or Daemon):** A long-running background process designed to persist without requiring an interactive user login. Services are orchestrated by an init system like **`systemd`** (PID 1). `systemd` boots services on startup, monitors their health, restarts them upon failure, and aggregates stdout/stderr into `journalctl`.
+
+```plaintext
+┌─────────────────────────────────────────────────────────────┐
+│                       systemd (PID 1)                       │
+│                              │                              │
+│              Spawns & monitors long-running daemon          │
+│                              ▼                              │
+│                    containerd.service                       │
+└─────────────────────────────────────────────────────────────┘
+```
+
+When we run container engines like `containerd`, we configure them as a **`systemd` service** (`containerd.service`). This ensures the runtime engine is constantly listening on a UNIX domain socket (like `/run/containerd/containerd.sock`) to process container requests.
+
+<Callout type="info">
+  **Why PID 1 Matters**: `systemd` is the mother of all user-space processes in modern Linux distributions. If a background daemon crashes, `systemd` handles cleanup, zombie process reaping, and automatic restarts.
+</Callout>
+
+---
+
+## 2. What is `containerd`? (The High-Level Manager) 📦
+
+**`containerd`** is an open-source container runtime daemon originally created by Docker and graduated under the Cloud Native Computing Foundation (**CNCF**). It serves as the master coordinator for all container operations on a host.
+
+When Kubernetes (`kubelet`) wants to schedule and run a Pod on a worker node, it communicates directly with `containerd` over the **Container Runtime Interface (CRI)**.
+
+### Core Responsibilities of `containerd`:
+1. **Image Management**: Pulling OCI container images from remote registries (Docker Hub, GitHub Packages, Quay, ECR), verifying checksums, and decompressing tarball layers.
+2. **Snapshot & Storage Layers**: Managing OverlayFS mounts and copy-on-write (CoW) filesystem layers so containers can read and write files without altering base images.
+3. **Lifecycle Management**: Tracking container states (created, running, paused, stopped, deleted) and exposing gRPC APIs.
+4. **Supervising Execution**: Spawning container shims (`containerd-shim`) to keep containers alive even if the main `containerd` daemon restarts during an upgrade.
+
+> **Key Takeaway**: `containerd` is a **manager**, not a low-level sandbox builder. It does not directly configure kernel namespaces or wire up virtual network cables. Instead, it delegates those tasks to **`runc`** and **CNI plugins**.
+
+---
+
+## 3. The Division of Labor: `containerd`, `runc`, and CNI 🏗️
+
+Think of launching a container like constructing a custom prefabricated home:
+
+```plaintext
+                      ┌───────────────────────┐
+                      │      containerd       │
+                      │ (The General Manager) │
+                      └───────────┬───────────┘
+                                  │
+        ┌─────────────────────────┴─────────────────────────┐
+        │                                                   │
+        ▼                                                   ▼
+┌──────────────────────┐                            ┌──────────────────────┐
+│     CNI Plugins      │                            │     OCI Runtime      │
+│  (The Electrician)   │                            │   (The Carpenter)    │
+├──────────────────────┤                            ├──────────────────────┤
+│ • Creates veth pair  │                            │ • runc execution     │
+│ • Attaches to bridge │                            │ • Sets Linux cgroups │
+│ • Allocates IP & DNS │                            │ • Locks namespaces   │
+└──────────────────────┘                            └──────────────────────┘
+```
+
+---
+
+### A. The Builder: `runc` (OCI Low-Level Runtime) 🪚
+
+`containerd` delegates low-level process creation to **`runc`**, the reference implementation of the Open Container Initiative (**OCI**) runtime specification.
+
+`runc` is **not a daemon or long-running background service**. It is a lightweight CLI utility that executes in milliseconds:
+1. It parses the OCI bundle configuration (`config.json`) prepared by `containerd`.
+2. It interacts directly with Linux kernel syscalls (`clone`, `unshare`, `pivot_root`).
+3. It locks down the target process inside isolated **Namespaces** and **cgroups**.
+4. Once the process is running, `runc` exits completely!
+
+#### The Kernel Isolation Pillars:
+* **Linux Namespaces (The Blindfolds):** Isolates what a process can *see*.
+  * `PID`: Private process tree (the container process believes it is PID 1).
+  * `NET`: Dedicated network stack (private loopback, interfaces, routing tables, and firewall rules).
+  * `MNT`: Isolated filesystem root (`/`) using `pivot_root`.
+  * `IPC`: Separate Inter-Process Communication queues and shared memory.
+  * `UTS`: Custom hostname and domain name.
+  * `USER`: Mapping in-container root (UID 0) to an unprivileged user on the host.
+* **Control Groups / cgroups (The Meter):** Limits what a process can *use*.
+  * Restricts maximum CPU shares, RAM limits (preventing OOM panics on the host), I/O bandwidth, and maximum process counts (`pids.max`).
+
+<Callout type="warning">
+  **Crucial Production Setting (`SystemdCgroup = true`)**:
+  By default, `runc` uses its internal `cgroupfs` driver. However, because modern Linux distributions rely on `systemd` to manage host resources, having two distinct managers manipulating cgroup hierarchies causes race conditions and node instability under heavy memory pressure. 
+  
+  Always set `SystemdCgroup = true` inside `/etc/containerd/config.toml` so both `containerd` and `runc` route cgroup allocations through `systemd`!
+</Callout>
+
+---
+
+### B. The Network Specialist: CNI (Container Network Interface) 🔌
+
+Because `runc` is strictly focused on kernel process isolation, it has **zero awareness of IP addresses, gateways, or subnet routing**.
+
+To connect an isolated network namespace to the outside world, `containerd` invokes **CNI (Container Network Interface) Plugins** (typically located in `/opt/cni/bin/`).
+
+```plaintext
+Host Network Stack                              Container Network Namespace
+┌────────────────────────┐                      ┌────────────────────────┐
+│  Bridge (cni0)         │                      │  eth0 (10.88.0.2)      │
+│  [10.88.0.1/24]        │                      │                        │
+│         │              │                      │                        │
+│         └── veth_host  ◄────── Virtual ──────►│                        │
+│             (Interface)        Cable          └────────────────────────┘
+└────────────────────────┘
+```
+
+#### How CNI Configures Networking:
+1. **Creates a Virtual Ethernet Pair (`veth`)**: Generates a paired bidirectional virtual cable in the kernel.
+2. **Plugs In the Ends**: Moves one end (`eth0`) inside the container's network namespace and attaches the peer interface (`vethXXX`) to the host's virtual switch (e.g., `cni0` bridge).
+3. **Allocates IP Address (IPAM)**: Uses plugins like `host-local` or `dhcp` to assign an IP from the subnet pool and configures the default gateway and routing table.
+4. **Sets Up Port Forwarding**: Uses `portmap` or `iptables`/`nftables` rules to route external traffic on host ports directly into the container.
+
+---
+
+## 4. Talking to `containerd`: `ctr` vs. `nerdctl` 🛠️
+
+Once `containerd` is running as a `systemd` daemon, how do engineers interact with it on the command line?
+
+| Feature / Aspect | `ctr` (Built-in Debug CLI) | `nerdctl` (Modern Docker-Compatible CLI) |
+| :--- | :--- | :--- |
+| **Primary Audience** | `containerd` core developers & low-level debugging | System administrators, DevOps engineers, human users |
+| **UX & Ergonomics** | Very low-level and explicit | Drop-in replacement for Docker syntax (`nerdctl run`, `build`, `compose`) |
+| **Image Pulling** | Must explicitly pull images (`ctr images pull ...`) before running | Automatically pulls missing images upon `run` |
+| **CNI Integration** | ❌ **No automatic networking**. Containers start without bridge IPs unless manually wired | ✅ **Automatic CNI wiring**. Instantly provisions bridge networking and DNS |
+| **Compose Support** | ❌ No native compose support | ✅ Native `nerdctl compose` support |
+
+<Callout type="tip">
+  **Pro-Tip**: Use `ctr` when you need to inspect raw namespaces (`ctr -n k8s.io ...`) or debug raw tasks directly on a Kubernetes node without Docker. Use `nerdctl` for everyday container testing, interactive shells, and fast local workflows!
+</Callout>
+
+---
+
+## 5. Summary: What Actually Happens When You Run a Container? 🚀
+
+When you type `sudo nerdctl run -d -p 8080:80 nginx` (or when Kubernetes kubelet schedules a Pod):
+
+```plaintext
+ 1. Command Sent ──► nerdctl sends gRPC request to containerd.sock
+ 2. Image Prep   ──► containerd pulls layers, verifies sha256 & unpacks snapshot
+ 3. Network Hook ──► containerd triggers CNI plugins -> veth pair created & IP assigned
+ 4. Runtime Prep ──► containerd writes OCI bundle (rootfs + config.json) for runc
+ 5. Sandbox Lock ──► runc calls Linux kernel (namespaces + cgroups), forks process & exits
+ 6. Supervision  ──► containerd-shim monitors Nginx process PID in background
+```
+
+1. **Request Ingestion**: `nerdctl` formats your command into a gRPC request and sends it over `/run/containerd/containerd.sock`.
+2. **Layer Preparation**: `containerd` checks local storage for the `nginx` image. If missing, it downloads the compressed layers, unpacks them, and constructs an OverlayFS mount representing the root filesystem (`rootfs`).
+3. **Network Provisioning**: `containerd` invokes CNI plugins in `/opt/cni/bin/`. CNI creates a `veth` pair, pushes one end into the container network namespace, assigns an IP address, and configures port forwarding for port `8080`.
+4. **OCI Bundle Generation**: `containerd` generates an OCI-compliant `config.json` containing namespace specifications, cgroup limits, environment variables, and mount paths.
+5. **Kernel Isolation via `runc`**: `containerd` invokes `runc`. `runc` instructs the Linux Kernel to clone new namespaces, enforce memory/CPU cgroups, mount the `rootfs`, start the Nginx binary, and immediately exit.
+6. **Background Supervision**: A tiny helper process (`containerd-shim`) stays attached to Nginx's file descriptors to capture logs and exit codes without tying up `containerd`.
+
+<FunFact emoji="📦" label="The Container Myth">
+  There is no such system call in the Linux Kernel as <code>create_container()</code>! A container is simply a standard Linux process wearing a blindfold (Namespaces) and strapped to a resource leash (cgroups).
+</FunFact>
+
+---
+
+## ⏱️ Quick Revision Cheat Sheet
+* **`systemd`**: The host init system (PID 1) that keeps `containerd.service` alive in the background.
+* **`containerd`**: The high-level orchestrator (manages image downloads, storage snapshots, CRI endpoints, and lifecycle state).
+* **`runc`**: The low-level ephemeral OCI tool (calls kernel syscalls to apply namespaces and cgroups, then exits).
+* **`CNI Plugins`**: Independent executables in `/opt/cni/bin` that configure virtual Ethernet interfaces, IP addresses, and routing.
+* **`SystemdCgroup = true`**: Essential setting in `config.toml` to prevent conflicting cgroup managers.
+* **`nerdctl` vs `ctr`**: `nerdctl` is human-friendly with automatic CNI networking; `ctr` is raw and intended for runtime debugging.
+
+---
+
+## 🔗 The Container Architecture: Connecting the Dots
+Use the interactive questions below to test your understanding of how container components fit together.
+
+<ConnectingTheDots>
+  <QuestionCard id={1} question="Why is it technically incorrect to say 'a container is running on my Linux server' from a kernel perspective?">
+    **The Connection:** Because the Linux kernel has no native concept or data structure called a "container".
+    
+    What is actually running is a standard Linux process (like `nginx` or `python`). The illusion of a container is created by combining two independent kernel features:
+    
+    1. **Namespaces**: Restrict what the process can view (isolating process trees, mounts, networks, users, and IPC).
+    2. **Control Groups (cgroups)**: Restrict how many hardware resources (CPU, RAM, disk I/O, PIDs) the process can consume.
+    
+    To the kernel scheduler, containerized processes look and behave just like any other process on the host.
+  </QuestionCard>
+
+  <QuestionCard id={2} question="What is the architectural difference in responsibility between containerd and runc?">
+    **The Connection:** `containerd` is a **high-level, long-running daemon**, while `runc` is a **low-level, short-lived CLI executor**.
+    
+    * **`containerd`** manages the entire lifecycle before and after process execution: fetching images over the network, unpacking filesystem tarballs, tracking container statuses, handling gRPC API requests from Kubernetes CRI, and triggering network plugins.
+    * **`runc`** only cares about the moment of creation: it takes the filesystem and `config.json` prepared by `containerd`, talks directly to the Linux kernel to create isolated namespaces and cgroups, spawns the application process inside that sandbox, and immediately terminates.
+  </QuestionCard>
+
+  <QuestionCard id={3} question="Why does running a container with the low-level `ctr` tool result in a container without an IP address, while `nerdctl` handles it automatically?">
+    **The Connection:** `ctr` is a raw development and debugging tool that interfaces directly with `containerd` APIs without executing high-level user workflows. It deliberately does not invoke CNI plugins unless explicitly instructed via custom flags.
+    
+    In contrast, `nerdctl` is designed as a full-featured, user-friendly Docker alternative. When you issue `nerdctl run`, it automatically orchestrates both `containerd` (for image and container lifecycle) and CNI plugins located in `/opt/cni/bin/` to create a virtual Ethernet pair, attach it to a bridge, and assign an IP address.
+  </QuestionCard>
+
+  <QuestionCard id={4} question="What happens if the main `containerd` service is restarted or crashes while 50 containers are actively handling traffic?">
+    **The Connection:** The containers continue running uninterrupted thanks to **`containerd-shim`**.
+    
+    For every running container, `containerd` forks a lightweight shim process (`containerd-shim`). The shim acts as the parent process to the container's PID 1, keeping open file descriptors (stdin, stdout, stderr), exit status pipes, and PTYs active.
+    
+    Because the container process is parented by the shim rather than `containerd` directly, `containerd` can be restarted or upgraded without terminating active containers (a capability known as live restore).
+  </QuestionCard>
+
+  <QuestionCard id={5} question="Why is setting `SystemdCgroup = true` mandatory in modern Kubernetes and containerd environments?">
+    **The Connection:** Modern Linux operating systems use `systemd` as their primary init system and default cgroup manager.
+    
+    If `containerd` and `runc` use the raw `cgroupfs` driver instead of `systemd`, the node ends up with **two competing cgroup managers** attempting to organize the `/sys/fs/cgroup` hierarchy. Under high memory pressure or resource contention, this dual-manager conflict causes unpredictable OOM kills, metric discrepancies, and node instability. Enabling `SystemdCgroup = true` ensures a single unified manager controls all resource allocations.
+  </QuestionCard>
+</ConnectingTheDots>
+
+---
+
+## 💡 Lesson Reflection
+* **Modularity Wins**: Containers are powerful because modular tools (`containerd` for management, `runc` for isolation, `CNI` for networking) do one job exceptionally well.
+* **Kernel Foundations**: Mastering cgroups, namespaces, and virtual networking demystifies the entire container ecosystem, from Docker to Kubernetes.
+* **Clean Integrations**: Aligning runtime configurations (like `SystemdCgroup`) with the host OS init system is the bedrock of production stability.
