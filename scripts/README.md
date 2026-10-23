@@ -6,7 +6,37 @@ This directory contains automation and operational utility scripts for **The Wor
 
 ## 🛡️ Cloud Security & Auditing
 
-### `gcp_api_key_asset_scanner.py` ⭐
+### `logpull.py` ⭐
+High-performance, quota-aware, and resumable **Bulk Cloud Logging reader**.
+
+- **Reliability**: Self-paces to 50 requests/min (under GCP's 60 req/min quota) with exponential backoff on HTTP 429 and 5xx errors.
+- **Observability**: Live terminal dashboard with progress bar, percentage, rate (entries/sec), request pacing, and estimated time to completion (ETA).
+- **Crash-Resilience**: Continually flushes progress to disk (`.state.json` and `.jsonl.part`). Supports resuming interrupted jobs with `--resume` without data loss or duplicates.
+- **Output Format**: Final output matches `gcloud logging read --format=json` (standard JSON array of `LogEntry` objects).
+
+#### Usage:
+```bash
+# Pull Cloud Armor rate-limiting / security logs
+python3 scripts/logpull.py \
+  --project YOUR_PROJECT_ID \
+  --filter 'resource.type="http_load_balancer" AND status>=400' \
+  --days 30 \
+  --limit 200000 \
+  --out gcp_logs.json
+
+# Resume interrupted run
+python3 scripts/logpull.py \
+  --project YOUR_PROJECT_ID \
+  --filter 'resource.type="http_load_balancer" AND status>=400' \
+  --days 30 \
+  --limit 200000 \
+  --out gcp_logs.json \
+  --resume
+```
+
+---
+
+### `gcp_api_key_asset_scanner.py`
 Enterprise-scale, **strictly read-only** GCP API Key Inventory script powered by **Google Cloud Asset Inventory (`searchAllResources`)**.
 
 - **Speed**: Fetches 500 API keys per page across whole organizations or folders in seconds, avoiding N+1 project API call rate limits.
