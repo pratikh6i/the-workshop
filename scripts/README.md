@@ -36,6 +36,46 @@ python3 scripts/logpull.py \
 
 ---
 
+### `org_public_ip_security_architect_audit.py` 🛡️⚡
+Enterprise-scale, **strictly read-only**, ultra-high-speed multi-threaded GCP Cloud Security Architecture Auditor for Compute Engine VM instances.
+
+- **Fastest in the Fleet**: Features short-circuit evaluation, fast DNS PTR timeouts, and high-concurrency worker threads. Automatically filters out system projects (`sys-*`) and detects disabled Compute APIs without stalling.
+- **Deep Security Architecture Assessment**:
+  - **Exposure**: Differentiates between Static Reserved vs Ephemeral Dynamic IPs, and RUNNING vs STOPPED instances (stopping accessConfig leaks).
+  - **Ingress Attack Surface**: Scans project ingress firewall rules to alert on open `0.0.0.0/0` exposure for SSH (22), RDP (3389), or all ports.
+  - **Lateral Movement & Blast Radius**: Inspects attached Service Accounts and evaluates project-level IAM roles and API scopes to quantify compromise blast radius.
+  - **Reverse DNS (PTR)**: Performs automated PTR resolution to verify if public IPs map to external hostnames/domains.
+  - **System Hardening**: Checks block-project-ssh-keys, serial port status, Shielded VM (Secure Boot, vTPM, Integrity Monitoring), and OS Config status.
+- **Customer Review Template Ready**: Directly outputs 25 columns matching enterprise audit spreadsheets.
+
+#### Usage:
+```bash
+# Interactive mode (prompts for Org ID)
+python3 scripts/org_public_ip_security_architect_audit.py
+
+# Non-interactive entire organization audit (high concurrency)
+python3 scripts/org_public_ip_security_architect_audit.py --org-id YOUR_ORG_ID --workers 20
+
+# Target specific projects
+python3 scripts/org_public_ip_security_architect_audit.py --projects prd-project-1,prd-project-2
+
+# Target specific folder
+python3 scripts/org_public_ip_security_architect_audit.py --folder-id YOUR_FOLDER_ID
+```
+
+---
+
+### `enrich_scc_public_ip_vms.py`
+Enriches exported Security Command Center (SCC) findings CSVs (specifically `PUBLIC_IP_ADDRESS` findings) with live GCP metadata.
+
+- **Enrichment**: Adds Static vs Ephemeral status, Reverse DNS PTR hostname, attached Service Account, Project-wide SSH keys blocking, and automated remediation action plans.
+- **Usage**:
+```bash
+python3 scripts/enrich_scc_public_ip_vms.py --scc-csv scc_findings.csv -o enriched_scc_findings.csv
+```
+
+---
+
 ### `gcp_api_key_asset_scanner.py`
 Enterprise-scale, **strictly read-only** GCP API Key Inventory script powered by **Google Cloud Asset Inventory (`searchAllResources`)**.
 
