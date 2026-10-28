@@ -36,6 +36,35 @@ python3 scripts/logpull.py \
 
 ---
 
+### `iam_principal_hierarchy_roles_report.py` 🛡️⭐
+Enterprise-scale, **strictly read-only** GCP IAM Principal Hierarchy & Role Inheritance Auditor.
+
+- **Full Ancestry Trace**: Traces `Organization Node --> Folder --> Subfolder(s) --> Project` for every IAM principal (Users, Service Accounts, Groups, Domains, Workload Identity).
+- **Clear Role Separation**:
+  - `Roles Aggregated`: Complete union of all effective roles at project level.
+  - `roles (At org level)`: Roles inherited from the Organization node (with Org ID).
+  - `Role (at folder level with folder ID in the bracket)`: Roles inherited from parent folders (with bracketed Folder ID & display name).
+  - `Roles (Direct Project Level)`: Roles granted directly on the project's own IAM policy.
+- **Safety**: Hardcoded `_assert_readonly` block prevents any command containing mutating verbs.
+- **Speed**: Caches Folder and Org policies in memory across threads, skipping thousands of duplicate API requests.
+
+#### Usage:
+```bash
+# Interactive mode (prompts for Org ID, Folder ID, or Projects)
+python3 scripts/iam_principal_hierarchy_roles_report.py
+
+# Entire organization scan
+python3 scripts/iam_principal_hierarchy_roles_report.py --org-id YOUR_ORG_ID --workers 16
+
+# Audit a specific folder tree recursively
+python3 scripts/iam_principal_hierarchy_roles_report.py --folder-id YOUR_FOLDER_ID
+
+# Filter for a specific user or service account
+python3 scripts/iam_principal_hierarchy_roles_report.py --org-id YOUR_ORG_ID --principal user@example.com
+```
+
+---
+
 ### `org_public_ip_security_architect_audit.py` 🛡️⚡
 Enterprise-scale, **strictly read-only**, ultra-high-speed multi-threaded GCP Cloud Security Architecture Auditor for Compute Engine VM instances.
 
