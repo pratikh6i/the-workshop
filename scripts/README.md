@@ -6,6 +6,21 @@ This directory contains automation and operational utility scripts for **The Wor
 
 ## 🛡️ Cloud Security & Auditing
 
+### `gke_upgrade_audit.py` ☸️🛡️
+Comprehensive, **strictly read-only** Google Kubernetes Engine (GKE) Cluster Upgrade & Health Audit Engine.
+
+- **Topology & Version Audit**: Inspects clusters across target projects, retrieving control plane versions, node pool versions, and auto-upgrade (`management.autoUpgrade`) settings.
+- **Version Drift Detection**: Evaluates version alignment between control plane and node pools, flagging `MISMATCH DETECTED` if pools trail master.
+- **Upgrade History Timeline**: Pulls chronological GKE operation logs (`UPGRADE_MASTER`, `UPGRADE_NODES`), parsing the last successful upgrade timestamp (in IST) and a timeline of the last 5 operations (`[YYYY-MM-DD] UPGRADE➔DONE`).
+- **Edge-Case Protected**: Uses absolute target link parsing to prevent substring collision across similarly-named clusters.
+
+#### Usage:
+```bash
+python3 scripts/gke_upgrade_audit.py
+```
+
+---
+
 ### `logpull.py` ⭐
 High-performance, quota-aware, and resumable **Bulk Cloud Logging reader**.
 
